@@ -28,43 +28,17 @@ body {
 }
 
 #app {
-    width: min(1320px, calc(100vw - 32px));
+    width: min(1520px, calc(100vw - 24px));
     margin: 0 auto;
-    padding: 36px 0 28px;
-}
-
-.hero {
-    margin-bottom: 28px;
-}
-
-.eyebrow {
-    margin: 0 0 10px;
-    color: var(--accent);
-    font-size: 13px;
-    letter-spacing: 0.24em;
-    font-weight: 700;
-}
-
-.hero h1 {
-    margin: 0;
-    font-size: clamp(32px, 5vw, 56px);
-    line-height: 1;
-}
-
-.subtitle {
-    max-width: 820px;
-    margin: 14px 0 0;
-    color: var(--text-soft);
-    font-size: 16px;
-    line-height: 1.7;
+    padding: 20px 0 28px;
 }
 
 .orbital-layout {
     display: grid;
-    grid-template-columns: repeat(2, minmax(320px, 520px));
+    grid-template-columns: repeat(2, minmax(420px, 620px));
     align-items: center;
     justify-content: center;
-    gap: 26px;
+    gap: 30px;
 }
 
 .course-orb,
@@ -75,9 +49,9 @@ body {
 
 .orb-shell {
     position: relative;
-    width: min(100%, 520px);
+    width: min(100%, 620px);
     aspect-ratio: 1;
-    padding: 18px;
+    padding: 20px;
     border-radius: 50%;
     background:
         radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 32%),
@@ -91,15 +65,15 @@ body {
 .orb-shell::before {
     content: "";
     position: absolute;
-    inset: 20px;
+    inset: 22px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.08);
     pointer-events: none;
 }
 
 .info-shell {
-    width: min(100%, 520px);
-    padding: 26px;
+    width: min(100%, 620px);
+    padding: 30px;
 }
 
 canvas {
@@ -118,8 +92,9 @@ canvas {
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    justify-content: center;
+    gap: 14px;
+    justify-content: flex-start;
+    padding-top: 18px;
 }
 
 .info-kicker {
@@ -173,12 +148,11 @@ canvas {
 }
 
 .panel-card {
-    padding: 18px;
+    padding: 16px;
     border-radius: 28px;
 }
 
-.controls-card h2,
-.stats-card h2 {
+.controls-card h2 {
     margin: 0 0 14px;
     font-size: 18px;
 }
@@ -208,8 +182,30 @@ canvas {
     font-size: 18px;
 }
 
+.duration-control {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.duration-control input {
+    width: min(220px, 100%);
+    padding: 12px 14px;
+    color: var(--text-main);
+    font: inherit;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    outline: none;
+}
+
+.duration-control input:focus {
+    border-color: rgba(110, 255, 178, 0.55);
+    box-shadow: 0 0 0 3px rgba(110, 255, 178, 0.12);
+}
+
 .controls-dock #controls {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 button {
@@ -239,6 +235,16 @@ button {
     box-shadow: 0 12px 30px rgba(255, 85, 120, 0.24);
 }
 
+#slowMeBtn {
+    background: linear-gradient(135deg, #4f6b8c, #314765);
+    box-shadow: 0 12px 30px rgba(58, 85, 123, 0.24);
+}
+
+#slowOthersBtn {
+    background: linear-gradient(135deg, #9a7a4d, #6d5330);
+    box-shadow: 0 12px 30px rgba(123, 91, 46, 0.24);
+}
+
 #resetBtn {
     background: linear-gradient(135deg, #74829a, #4c5567);
 }
@@ -252,58 +258,14 @@ button:active {
     transform: translateY(1px) scale(0.99);
 }
 
-.racer-stats {
-    display: grid;
-    gap: 10px;
-    max-height: 186px;
-    overflow: auto;
-    padding-right: 4px;
-}
-
-.racer-stat {
-    position: relative;
-    overflow: hidden;
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.racer-stat::after {
-    content: "";
-    position: absolute;
-    inset: auto 0 0 0;
-    height: 3px;
-    background: var(--racer-color, white);
-}
-
-.racer-name {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 700;
-}
-
-.racer-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    background: var(--racer-color, white);
-    box-shadow: 0 0 12px var(--racer-color, white);
-}
-
-.racer-speed {
-    margin-top: 8px;
-    color: var(--text-soft);
-    font-size: 14px;
-}
-
 .announcement {
-    margin-top: 22px;
-    padding: 16px 18px;
+    margin-top: 14px;
+    padding: 14px 16px;
     border-radius: 22px;
     color: var(--text-soft);
     text-align: center;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 @media (max-width: 1100px) {
@@ -318,7 +280,7 @@ button:active {
 
 @media (max-width: 720px) {
     #app {
-        width: min(100vw - 18px, 960px);
+        width: min(100vw - 14px, 1200px);
         padding-top: 20px;
     }
 

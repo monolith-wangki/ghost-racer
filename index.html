@@ -8,12 +8,6 @@
 </head>
 <body>
     <div id="app">
-        <header class="hero">
-            <p class="eyebrow">DOT VIEW RACE</p>
-            <h1>두 개의 원형 UI로 보는 레이스</h1>
-            <p class="subtitle">왼쪽 원에서는 코스와 레이서를, 오른쪽 원에서는 현재 속도와 레이스 상태를 확인합니다. 버튼으로 흐름을 흔들면서 원형 대시보드 위의 레이스를 지켜보세요.</p>
-        </header>
-
         <main id="game-container" class="orbital-layout">
             <section class="course-orb">
                 <div class="orb-shell">
@@ -48,11 +42,6 @@
                                 <strong id="myProgress">0m</strong>
                             </div>
                         </div>
-
-                        <div class="panel-card stats-card">
-                            <h2>실시간 스피드</h2>
-                            <div id="racerStats" class="racer-stats"></div>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -60,17 +49,24 @@
 
         <section class="panel-card controls-dock">
             <h2>시뮬레이션 조작</h2>
+            <label class="duration-control" for="raceDurationInput">
+                <span class="status-label">레이스 길이 (초)</span>
+                <input id="raceDurationInput" type="number" min="20" max="300" step="5" value="60">
+            </label>
             <div id="controls">
                 <button id="startBtn">레이스 시작</button>
                 <button id="boostMeBtn">내 속도 올리기</button>
                 <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
                 <button id="resetBtn">리셋</button>
+                <button id="slowMeBtn">내 속도 내리기</button>
+                <button id="slowOthersBtn">다른 레이서 속도 내리기</button>
+            </div>
+
+            <div id="announcement" class="announcement" aria-live="polite">
+                출발 버튼을 누르면 레이스가 시작됩니다.
             </div>
         </section>
 
-        <div id="announcement" class="announcement" aria-live="polite">
-            출발 버튼을 누르면 레이스가 시작됩니다.
-        </div>
     </div>
     <script src="script.js"></script>
 </body>

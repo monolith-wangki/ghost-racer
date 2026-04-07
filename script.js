@@ -3,35 +3,82 @@ const ctx = canvas.getContext("2d");
 
 const startBtn = document.getElementById("startBtn");
 const boostMeBtn = document.getElementById("boostMeBtn");
+const slowMeBtn = document.getElementById("slowMeBtn");
 const boostOthersBtn = document.getElementById("boostOthersBtn");
+const slowOthersBtn = document.getElementById("slowOthersBtn");
 const resetBtn = document.getElementById("resetBtn");
+const raceDurationInput = document.getElementById("raceDurationInput");
 
 const raceState = document.getElementById("raceState");
 const distanceLeft = document.getElementById("distanceLeft");
 const leaderName = document.getElementById("leaderName");
 const currentSpeed = document.getElementById("currentSpeed");
 const myProgress = document.getElementById("myProgress");
-const racerStats = document.getElementById("racerStats");
 const announcement = document.getElementById("announcement");
 
-const DISTANCE_METERS = 100;
+const DISTANCE_METERS = 1800;
+const DEFAULT_RACE_DURATION_SECONDS = 60;
 const BOOST_AMOUNT = 0.2;
-const MAX_PROGRESS_STEP = 0.0055;
-const MIN_PROGRESS_STEP = 0.0012;
 const TRACK_WIDTH = 108;
 const LANE_OFFSETS = [-30, -10, 10, 30];
 
-const TRACK_POINTS = [
-    { x: 154, y: 388 },
-    { x: 184, y: 218 },
-    { x: 316, y: 126 },
-    { x: 486, y: 132 },
-    { x: 610, y: 238 },
-    { x: 624, y: 420 },
-    { x: 528, y: 578 },
-    { x: 340, y: 626 },
-    { x: 184, y: 540 },
-    { x: 136, y: 404 }
+const TRACK_SEGMENTS = [
+    {
+        type: "curve",
+        from: { x: 296, y: 598 },
+        cp1: { x: 176, y: 602 },
+        cp2: { x: 126, y: 492 },
+        to: { x: 208, y: 402 }
+    },
+    {
+        type: "curve",
+        from: { x: 208, y: 402 },
+        cp1: { x: 266, y: 336 },
+        cp2: { x: 308, y: 244 },
+        to: { x: 288, y: 166 }
+    },
+    {
+        type: "curve",
+        from: { x: 288, y: 166 },
+        cp1: { x: 394, y: 150 },
+        cp2: { x: 456, y: 266 },
+        to: { x: 396, y: 382 }
+    },
+    {
+        type: "curve",
+        from: { x: 396, y: 382 },
+        cp1: { x: 334, y: 484 },
+        cp2: { x: 382, y: 600 },
+        to: { x: 500, y: 596 }
+    },
+    {
+        type: "curve",
+        from: { x: 500, y: 596 },
+        cp1: { x: 620, y: 590 },
+        cp2: { x: 668, y: 474 },
+        to: { x: 558, y: 388 }
+    },
+    {
+        type: "curve",
+        from: { x: 558, y: 388 },
+        cp1: { x: 486, y: 332 },
+        cp2: { x: 450, y: 234 },
+        to: { x: 496, y: 150 }
+    },
+    {
+        type: "curve",
+        from: { x: 496, y: 150 },
+        cp1: { x: 604, y: 162 },
+        cp2: { x: 680, y: 280 },
+        to: { x: 560, y: 386 }
+    },
+    {
+        type: "curve",
+        from: { x: 560, y: 386 },
+        cp1: { x: 452, y: 484 },
+        cp2: { x: 430, y: 602 },
+        to: { x: 296, y: 598 }
+    },
 ];
 
 let racers = [];
@@ -41,6 +88,7 @@ let animationId = null;
 let lastFrameTime = 0;
 let pathSamples = [];
 let trackLength = 0;
+let raceDurationMs = DEFAULT_RACE_DURATION_SECONDS * 1000;
 
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -69,37 +117,56 @@ function cubicDerivative(p0, p1, p2, p3, t) {
     );
 }
 
+function getBaseProgressStep() {
+    const referencePlayerSpeed = 1.04;
+    return 1 / ((raceDurationMs / 16.6667) * referencePlayerSpeed);
+}
+
+function getProgressBounds() {
+    const baseStep = getBaseProgressStep();
+    return {
+        baseStep,
+        minStep: baseStep * 0.55,
+        maxStep: baseStep * 1.85
+    };
+}
+
+function syncRaceDuration() {
+    const parsedValue = Number.parseInt(raceDurationInput.value, 10);
+    const seconds = clamp(Number.isFinite(parsedValue) ? parsedValue : DEFAULT_RACE_DURATION_SECONDS, 20, 300);
+    raceDurationInput.value = String(seconds);
+    raceDurationMs = seconds * 1000;
+}
+
 function buildPathSamples() {
     pathSamples = [];
     trackLength = 0;
 
     const samples = [];
-    for (let i = 0; i < TRACK_POINTS.length - 1; i += 1) {
-        const prev = TRACK_POINTS[Math.max(0, i - 1)];
-        const current = TRACK_POINTS[i];
-        const next = TRACK_POINTS[i + 1];
-        const next2 = TRACK_POINTS[Math.min(TRACK_POINTS.length - 1, i + 2)];
-
-        const cp1 = {
-            x: current.x + (next.x - prev.x) / 6,
-            y: current.y + (next.y - prev.y) / 6
-        };
-        const cp2 = {
-            x: next.x - (next2.x - current.x) / 6,
-            y: next.y - (next2.y - current.y) / 6
-        };
-
-        const resolution = 38;
+    TRACK_SEGMENTS.forEach((segment) => {
+        const resolution = segment.type === "line" ? 28 : 42;
         for (let step = 0; step <= resolution; step += 1) {
-            if (i > 0 && step === 0) {
+            if (samples.length > 0 && step === 0) {
                 continue;
             }
 
             const t = step / resolution;
-            const x = cubicBezier(current.x, cp1.x, cp2.x, next.x, t);
-            const y = cubicBezier(current.y, cp1.y, cp2.y, next.y, t);
-            const dx = cubicDerivative(current.x, cp1.x, cp2.x, next.x, t);
-            const dy = cubicDerivative(current.y, cp1.y, cp2.y, next.y, t);
+            let x;
+            let y;
+            let dx;
+            let dy;
+
+            if (segment.type === "line") {
+                x = lerp(segment.from.x, segment.to.x, t);
+                y = lerp(segment.from.y, segment.to.y, t);
+                dx = segment.to.x - segment.from.x;
+                dy = segment.to.y - segment.from.y;
+            } else {
+                x = cubicBezier(segment.from.x, segment.cp1.x, segment.cp2.x, segment.to.x, t);
+                y = cubicBezier(segment.from.y, segment.cp1.y, segment.cp2.y, segment.to.y, t);
+                dx = cubicDerivative(segment.from.x, segment.cp1.x, segment.cp2.x, segment.to.x, t);
+                dy = cubicDerivative(segment.from.y, segment.cp1.y, segment.cp2.y, segment.to.y, t);
+            }
 
             const previous = samples[samples.length - 1];
             if (previous) {
@@ -113,7 +180,7 @@ function buildPathSamples() {
                 distance: trackLength
             });
         }
-    }
+    });
 
     pathSamples = samples;
 }
@@ -134,9 +201,9 @@ function createRacer(id, name, color, lane, speed, role) {
 function createInitialRacers() {
     return [
         createRacer("me", "나", "#7af7c4", 0, 1.04, "Player"),
-        createRacer("npc1", "레이서 1", "#ff6f91", 1, 0.98, "CPU"),
-        createRacer("npc2", "레이서 2", "#ffd166", 2, 1.01, "CPU"),
-        createRacer("npc3", "레이서 3", "#75a9ff", 3, 0.96, "CPU")
+        createRacer("npc1", "GROC 2025 챔피언", "#ff6f91", 1, 0.98, "CPU"),
+        createRacer("npc2", "이번달 1위", "#ffd166", 2, 1.01, "CPU"),
+        createRacer("npc3", "내 친구", "#75a9ff", 3, 0.96, "CPU")
     ];
 }
 
@@ -325,11 +392,11 @@ function drawHud() {
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.font = "700 26px Segoe UI";
     ctx.textAlign = "center";
-    ctx.fillText("CIRCULAR COURSE", canvas.width / 2, 58);
+    ctx.fillText("FIGURE EIGHT CIRCUIT", canvas.width / 2, 58);
 
     ctx.font = "600 14px Segoe UI";
     ctx.fillStyle = "rgba(226,232,240,0.82)";
-    ctx.fillText("Track Orb", canvas.width / 2, 84);
+    ctx.fillText("Flowing Crossover With Natural Corners", canvas.width / 2, 84);
     ctx.textAlign = "start";
 }
 
@@ -384,10 +451,12 @@ function updateRace(delta) {
         return;
     }
 
+    const { baseStep, minStep, maxStep } = getProgressBounds();
+
     racers.forEach((racer) => {
         const randomFactor = 0.88 + Math.random() * 0.32;
         const deltaBoost = delta / 16.6667;
-        const step = clamp(racer.speed * 0.0019 * randomFactor * deltaBoost, MIN_PROGRESS_STEP, MAX_PROGRESS_STEP);
+        const step = clamp(racer.speed * baseStep * randomFactor * deltaBoost, minStep, maxStep);
         racer.progress = clamp(racer.progress + step, 0, 1);
     });
 
@@ -395,7 +464,7 @@ function updateRace(delta) {
     if (finisher) {
         winner = finisher;
         racing = false;
-        announcement.textContent = `${finisher.name}가 곡선 코스를 가장 먼저 통과했습니다.`;
+        announcement.textContent = `${finisher.name}가 기하학적인 서킷을 가장 먼저 완주했습니다.`;
     }
 }
 
@@ -412,22 +481,6 @@ function updateUi() {
     leaderName.textContent = leader ? leader.name : "-";
     currentSpeed.textContent = me ? `${me.speed.toFixed(2)}x` : "-";
     myProgress.textContent = `${myDistance}m`;
-
-    racerStats.innerHTML = racers
-        .slice()
-        .sort((a, b) => b.progress - a.progress)
-        .map((racer) => {
-            const speedLabel = racer.speed.toFixed(2);
-            const progressLabel = Math.round(racer.progress * DISTANCE_METERS);
-            return `
-                <div class="racer-stat" style="--racer-color:${racer.color}">
-                    <span class="racer-role">${racer.role}</span>
-                    <div class="racer-name"><span class="racer-dot"></span>${racer.name}</div>
-                    <div class="racer-speed">현재 속도 ${speedLabel}x · 진행 ${progressLabel}m</div>
-                </div>
-            `;
-        })
-        .join("");
 }
 
 function frame(timestamp) {
@@ -454,8 +507,9 @@ function startRace() {
         return;
     }
 
+    syncRaceDuration();
     racing = true;
-    announcement.textContent = "직선과 곡선이 섞인 코스에서 레이스가 시작됐습니다.";
+    announcement.textContent = `${Math.round(raceDurationMs / 1000)}초 설정의 8자 서킷 레이스가 시작됐습니다.`;
     lastFrameTime = 0;
     animationId = requestAnimationFrame(frame);
 }
@@ -480,10 +534,31 @@ function boostOthers() {
     renderScene(performance.now());
 }
 
+function slowMe() {
+    const me = racers.find((racer) => racer.id === "me");
+    me.speed = clamp(me.speed - BOOST_AMOUNT, 0.6, 2.4);
+    announcement.textContent = `내 레이서의 속도가 ${me.speed.toFixed(2)}배로 내려갔습니다.`;
+    updateUi();
+    renderScene(performance.now());
+}
+
+function slowOthers() {
+    racers
+        .filter((racer) => racer.id !== "me")
+        .forEach((racer) => {
+            racer.speed = clamp(racer.speed - BOOST_AMOUNT, 0.6, 2.4);
+        });
+
+    announcement.textContent = "다른 레이서들의 속도를 낮춰서 추격 흐름이 느려졌습니다.";
+    updateUi();
+    renderScene(performance.now());
+}
+
 function resetRace() {
     racing = false;
     winner = null;
     lastFrameTime = 0;
+    syncRaceDuration();
 
     if (animationId) {
         cancelAnimationFrame(animationId);
@@ -491,16 +566,20 @@ function resetRace() {
     }
 
     racers = createInitialRacers();
-    announcement.textContent = "출발 버튼을 누르면 평면 코스 레이스가 시작됩니다.";
+    announcement.textContent = "출발 버튼을 누르면 8자 코스 레이스가 시작됩니다.";
     renderScene(performance.now());
     updateUi();
 }
 
 buildPathSamples();
+syncRaceDuration();
 
 startBtn.addEventListener("click", startRace);
 boostMeBtn.addEventListener("click", boostMe);
+slowMeBtn.addEventListener("click", slowMe);
 boostOthersBtn.addEventListener("click", boostOthers);
+slowOthersBtn.addEventListener("click", slowOthers);
 resetBtn.addEventListener("click", resetRace);
+raceDurationInput.addEventListener("change", syncRaceDuration);
 
 resetRace();
