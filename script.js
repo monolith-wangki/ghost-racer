@@ -1,5 +1,6 @@
 const canvas = document.getElementById("raceCanvas");
 const ctx = canvas.getContext("2d");
+const courseDisplay = document.getElementById("courseDisplay");
 
 const startBtn = document.getElementById("startBtn");
 const boostMeBtn = document.getElementById("boostMeBtn");
@@ -141,6 +142,29 @@ function getProgressBounds() {
         minStep: baseStep * 0.55,
         maxStep: baseStep * 1.85
     };
+}
+
+function getMatchupState() {
+    const me = racers.find((racer) => racer.id === "me");
+    const opponent = racers.find((racer) => racer.id !== "me");
+
+    if (!me || !opponent) {
+        return null;
+    }
+
+    if (Math.abs(me.progress - opponent.progress) < 0.0001) {
+        return "even";
+    }
+
+    return me.progress > opponent.progress ? "ahead" : "behind";
+}
+
+function triggerCourseDisplayEffect(className) {
+    courseDisplay.classList.remove("overtake-boost", "overtake-hit");
+
+    // Restart the animation cleanly when overtakes happen close together.
+    void courseDisplay.offsetWidth;
+    courseDisplay.classList.add(className);
 }
 
 function syncRaceDuration() {
@@ -486,6 +510,7 @@ function updateRace(delta) {
         return;
     }
 
+    const matchupBefore = getMatchupState();
     const { baseStep, minStep, maxStep } = getProgressBounds();
 
     racers.forEach((racer) => {
@@ -494,6 +519,15 @@ function updateRace(delta) {
         const step = clamp(racer.speed * baseStep * randomFactor * deltaBoost, minStep, maxStep);
         racer.progress = clamp(racer.progress + step, 0, 1);
     });
+
+    const matchupAfter = getMatchupState();
+    if (matchupBefore && matchupAfter && matchupBefore !== matchupAfter) {
+        if (matchupBefore === "behind" && matchupAfter === "ahead") {
+            triggerCourseDisplayEffect("overtake-boost");
+        } else if (matchupBefore === "ahead" && matchupAfter === "behind") {
+            triggerCourseDisplayEffect("overtake-hit");
+        }
+    }
 
     const finisher = racers.find((racer) => racer.progress >= 1);
     if (finisher) {
@@ -601,6 +635,7 @@ function resetRace() {
     }
 
     racers = createInitialRacers();
+    courseDisplay.classList.remove("overtake-boost", "overtake-hit");
     announcement.textContent = "출발 버튼을 누르면 8자 코스 레이스가 시작됩니다.";
     renderScene(performance.now());
     updateUi();
@@ -616,5 +651,8 @@ boostOthersBtn.addEventListener("click", boostOthers);
 slowOthersBtn.addEventListener("click", slowOthers);
 resetBtn.addEventListener("click", resetRace);
 raceDurationInput.addEventListener("change", syncRaceDuration);
+courseDisplay.addEventListener("animationend", () => {
+    courseDisplay.classList.remove("overtake-boost", "overtake-hit");
+});
 
 resetRace();
