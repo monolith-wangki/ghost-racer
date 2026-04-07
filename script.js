@@ -444,24 +444,25 @@ function drawHud() {
 
 function drawRacers(elapsed) {
     const ordered = [...racers].sort((a, b) => a.progress - b.progress);
+    const leader = getLeader();
 
     ordered.forEach((racer) => {
         const { x, y } = getRacerPosition(racer, elapsed);
-        const isMe = racer.id === "me";
-        const radius = isMe ? 13 : 8;
+        const isLeader = leader && leader.id === racer.id;
+        const radius = isLeader ? 11 : 9;
 
-        const glow = ctx.createRadialGradient(x, y, 3, x, y, isMe ? 34 : 22);
+        const glow = ctx.createRadialGradient(x, y, 3, x, y, isLeader ? 32 : 24);
         glow.addColorStop(0, `${racer.color}ff`);
-        glow.addColorStop(0.45, isMe ? `${racer.color}dd` : `${racer.color}88`);
+        glow.addColorStop(0.45, isLeader ? `${racer.color}dd` : `${racer.color}88`);
         glow.addColorStop(1, `${racer.color}00`);
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(x, y, isMe ? 34 : 22, 0, Math.PI * 2);
+        ctx.arc(x, y, isLeader ? 32 : 24, 0, Math.PI * 2);
         ctx.fill();
 
-        if (isMe) {
+        if (isLeader) {
             ctx.strokeStyle = "rgba(255,255,255,0.22)";
-            ctx.lineWidth = 8;
+            ctx.lineWidth = 6;
             ctx.beginPath();
             ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
             ctx.stroke();
@@ -472,23 +473,16 @@ function drawRacers(elapsed) {
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = isMe ? "#ffffff" : "rgba(255,255,255,0.65)";
-        ctx.lineWidth = isMe ? 4 : 2;
+        ctx.strokeStyle = isLeader ? "#ffffff" : "rgba(255,255,255,0.65)";
+        ctx.lineWidth = isLeader ? 4 : 2;
         ctx.beginPath();
-        ctx.arc(x, y, radius + (isMe ? 3 : 2), 0, Math.PI * 2);
+        ctx.arc(x, y, radius + (isLeader ? 3 : 2), 0, Math.PI * 2);
         ctx.stroke();
 
-        if (isMe) {
-            ctx.fillStyle = "rgba(255,255,255,0.95)";
-            ctx.beginPath();
-            ctx.arc(x - 3, y - 4, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
         ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.font = isMe ? "700 14px Segoe UI" : "600 13px Segoe UI";
+        ctx.font = isLeader ? "700 14px Segoe UI" : "600 13px Segoe UI";
         ctx.textAlign = "center";
-        ctx.fillText(racer.name, x, y - (isMe ? 24 : 16));
+        ctx.fillText(racer.name, x, y - (isLeader ? 24 : 16));
     });
 
     ctx.textAlign = "start";
@@ -550,6 +544,8 @@ function updateUi() {
     leaderName.textContent = leader ? leader.name : "-";
     currentSpeed.textContent = me ? `${me.speed.toFixed(2)}x` : "-";
     myProgress.textContent = `${myDistance}m`;
+    courseDisplay.classList.toggle("leader-me", Boolean(leader && leader.id === "me"));
+    courseDisplay.classList.toggle("leader-opponent", Boolean(leader && leader.id !== "me"));
 }
 
 function frame(timestamp) {

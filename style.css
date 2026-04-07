@@ -67,9 +67,21 @@ body {
     content: "";
     position: absolute;
     inset: 22px;
+    z-index: 3;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.08);
     pointer-events: none;
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.orb-shell.leader-me::before {
+    border-color: rgba(122, 247, 196, 0.72);
+    box-shadow: 0 0 22px rgba(122, 247, 196, 0.22);
+}
+
+.orb-shell.leader-opponent::before {
+    border-color: rgba(255, 92, 108, 0.72);
+    box-shadow: 0 0 22px rgba(255, 92, 108, 0.22);
 }
 
 .course-effect-layer {
