@@ -9,6 +9,8 @@ const resetBtn = document.getElementById("resetBtn");
 const raceState = document.getElementById("raceState");
 const distanceLeft = document.getElementById("distanceLeft");
 const leaderName = document.getElementById("leaderName");
+const currentSpeed = document.getElementById("currentSpeed");
+const myProgress = document.getElementById("myProgress");
 const racerStats = document.getElementById("racerStats");
 const announcement = document.getElementById("announcement");
 
@@ -399,13 +401,17 @@ function updateRace(delta) {
 
 function updateUi() {
     const leader = getLeader();
+    const me = racers.find((racer) => racer.id === "me");
     const remaining = leader
         ? Math.max(0, DISTANCE_METERS - Math.round(leader.progress * DISTANCE_METERS))
         : DISTANCE_METERS;
+    const myDistance = me ? Math.round(me.progress * DISTANCE_METERS) : 0;
 
     raceState.textContent = winner ? `${winner.name} 승리` : racing ? "진행 중" : "대기 중";
     distanceLeft.textContent = `${remaining}m`;
     leaderName.textContent = leader ? leader.name : "-";
+    currentSpeed.textContent = me ? `${me.speed.toFixed(2)}x` : "-";
+    myProgress.textContent = `${myDistance}m`;
 
     racerStats.innerHTML = racers
         .slice()

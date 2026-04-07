@@ -26,12 +26,16 @@
                     <div class="info-core">
                         <p class="info-kicker">RACE TELEMETRY</p>
                         <div class="headline-stack">
-                            <span class="status-label">레이스 상태</span>
-                            <strong id="raceState">대기 중</strong>
+                            <span class="status-label">현재 속도</span>
+                            <strong id="currentSpeed">1.04x</strong>
                         </div>
 
                         <div class="dial-grid">
                             <div class="dial-card primary">
+                                <span class="status-label">레이스 상태</span>
+                                <strong id="raceState">대기 중</strong>
+                            </div>
+                            <div class="dial-card">
                                 <span class="status-label">남은 거리</span>
                                 <strong id="distanceLeft">100m</strong>
                             </div>
@@ -39,15 +43,9 @@
                                 <span class="status-label">선두</span>
                                 <strong id="leaderName">나</strong>
                             </div>
-                        </div>
-
-                        <div class="panel-card controls-card">
-                            <h2>조작</h2>
-                            <div id="controls">
-                                <button id="startBtn">레이스 시작</button>
-                                <button id="boostMeBtn">내 속도 올리기</button>
-                                <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
-                                <button id="resetBtn">리셋</button>
+                            <div class="dial-card">
+                                <span class="status-label">내 진행</span>
+                                <strong id="myProgress">0m</strong>
                             </div>
                         </div>
 
@@ -59,6 +57,16 @@
                 </div>
             </section>
         </main>
+
+        <section class="panel-card controls-dock">
+            <h2>시뮬레이션 조작</h2>
+            <div id="controls">
+                <button id="startBtn">레이스 시작</button>
+                <button id="boostMeBtn">내 속도 올리기</button>
+                <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
+                <button id="resetBtn">리셋</button>
+            </div>
+        </section>
 
         <div id="announcement" class="announcement" aria-live="polite">
             출발 버튼을 누르면 레이스가 시작됩니다.
