@@ -16,18 +16,20 @@ const DISTANCE_METERS = 100;
 const BOOST_AMOUNT = 0.2;
 const MAX_PROGRESS_STEP = 0.0055;
 const MIN_PROGRESS_STEP = 0.0012;
-const TRACK_WIDTH = 120;
-const LANE_OFFSETS = [-36, -12, 12, 36];
+const TRACK_WIDTH = 108;
+const LANE_OFFSETS = [-30, -10, 10, 30];
 
 const TRACK_POINTS = [
-    { x: 120, y: 430 },
-    { x: 250, y: 430 },
-    { x: 410, y: 410 },
-    { x: 480, y: 330 },
-    { x: 520, y: 250 },
-    { x: 620, y: 180 },
-    { x: 770, y: 170 },
-    { x: 840, y: 110 }
+    { x: 154, y: 388 },
+    { x: 184, y: 218 },
+    { x: 316, y: 126 },
+    { x: 486, y: 132 },
+    { x: 610, y: 238 },
+    { x: 624, y: 420 },
+    { x: 528, y: 578 },
+    { x: 340, y: 626 },
+    { x: 184, y: 540 },
+    { x: 136, y: 404 }
 ];
 
 let racers = [];
@@ -180,25 +182,39 @@ function getRacerPosition(racer, elapsed) {
 }
 
 function drawBackground() {
-    const ground = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    ground.addColorStop(0, "#102139");
-    ground.addColorStop(1, "#0a1523");
+    const ground = ctx.createRadialGradient(
+        canvas.width / 2,
+        canvas.height / 2,
+        40,
+        canvas.width / 2,
+        canvas.height / 2,
+        canvas.width / 2
+    );
+    ground.addColorStop(0, "#12263c");
+    ground.addColorStop(0.55, "#0c1a2a");
+    ground.addColorStop(1, "#050b12");
     ctx.fillStyle = ground;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "#17311f";
+    ctx.fillStyle = "rgba(30, 82, 52, 0.45)";
     ctx.beginPath();
-    ctx.arc(160, 150, 120, 0, Math.PI * 2);
-    ctx.arc(820, 390, 150, 0, Math.PI * 2);
-    ctx.arc(720, 120, 90, 0, Math.PI * 2);
+    ctx.arc(208, 208, 112, 0, Math.PI * 2);
+    ctx.arc(566, 564, 126, 0, Math.PI * 2);
+    ctx.arc(560, 192, 84, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "rgba(255,255,255,0.04)";
-    for (let i = 0; i < 18; i += 1) {
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    for (let i = 0; i < 22; i += 1) {
         ctx.beginPath();
-        ctx.arc(60 + i * 55, 40 + (i % 3) * 18, 2, 0, Math.PI * 2);
+        ctx.arc(80 + (i % 6) * 110, 56 + Math.floor(i / 6) * 42, 2, 0, Math.PI * 2);
         ctx.fill();
     }
+
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, canvas.height / 2, 332, 0, Math.PI * 2);
+    ctx.stroke();
 }
 
 function drawTrackBase() {
@@ -305,12 +321,14 @@ function drawFinishLine() {
 
 function drawHud() {
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.font = "700 28px Segoe UI";
-    ctx.fillText("FLAT CIRCUIT VIEW", 26, 42);
+    ctx.font = "700 26px Segoe UI";
+    ctx.textAlign = "center";
+    ctx.fillText("CIRCULAR COURSE", canvas.width / 2, 58);
 
     ctx.font = "600 14px Segoe UI";
     ctx.fillStyle = "rgba(226,232,240,0.82)";
-    ctx.fillText("Straight + Curved Course", 28, 66);
+    ctx.fillText("Track Orb", canvas.width / 2, 84);
+    ctx.textAlign = "start";
 }
 
 function drawRacers(elapsed) {
@@ -399,7 +417,7 @@ function updateUi() {
                 <div class="racer-stat" style="--racer-color:${racer.color}">
                     <span class="racer-role">${racer.role}</span>
                     <div class="racer-name"><span class="racer-dot"></span>${racer.name}</div>
-                    <div class="racer-speed">속도 ${speedLabel}x · 진행 ${progressLabel}m</div>
+                    <div class="racer-speed">현재 속도 ${speedLabel}x · 진행 ${progressLabel}m</div>
                 </div>
             `;
         })

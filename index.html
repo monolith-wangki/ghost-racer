@@ -10,43 +10,52 @@
     <div id="app">
         <header class="hero">
             <p class="eyebrow">DOT VIEW RACE</p>
-            <h1>게임 화면처럼 보이는 평면 레이스 코스</h1>
-            <p class="subtitle">직선과 곡선이 이어진 트랙 위를 점 레이서들이 질주합니다. 타이밍을 보고 나를 밀어주거나, 다른 레이서들을 자극해 레이스 흐름을 흔들어보세요.</p>
+            <h1>두 개의 원형 UI로 보는 레이스</h1>
+            <p class="subtitle">왼쪽 원에서는 코스와 레이서를, 오른쪽 원에서는 현재 속도와 레이스 상태를 확인합니다. 버튼으로 흐름을 흔들면서 원형 대시보드 위의 레이스를 지켜보세요.</p>
         </header>
 
-        <main id="game-container">
-            <section class="track-panel">
-                <canvas id="raceCanvas" width="960" height="540"></canvas>
-                <div class="status-bar">
-                    <div>
-                        <span class="status-label">레이스 상태</span>
-                        <strong id="raceState">대기 중</strong>
-                    </div>
-                    <div>
-                        <span class="status-label">남은 거리</span>
-                        <strong id="distanceLeft">100m</strong>
-                    </div>
-                    <div>
-                        <span class="status-label">선두</span>
-                        <strong id="leaderName">나</strong>
-                    </div>
+        <main id="game-container" class="orbital-layout">
+            <section class="course-orb">
+                <div class="orb-shell">
+                    <canvas id="raceCanvas" width="760" height="760"></canvas>
                 </div>
             </section>
 
-            <section class="control-panel">
-                <div class="panel-card">
-                    <h2>조작</h2>
-                    <div id="controls">
-                        <button id="startBtn">레이스 시작</button>
-                        <button id="boostMeBtn">내 속도 올리기</button>
-                        <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
-                        <button id="resetBtn">리셋</button>
-                    </div>
-                </div>
+            <section class="telemetry-orb">
+                <div class="orb-shell info-shell">
+                    <div class="info-core">
+                        <p class="info-kicker">RACE TELEMETRY</p>
+                        <div class="headline-stack">
+                            <span class="status-label">레이스 상태</span>
+                            <strong id="raceState">대기 중</strong>
+                        </div>
 
-                <div class="panel-card">
-                    <h2>실시간 스피드</h2>
-                    <div id="racerStats" class="racer-stats"></div>
+                        <div class="dial-grid">
+                            <div class="dial-card primary">
+                                <span class="status-label">남은 거리</span>
+                                <strong id="distanceLeft">100m</strong>
+                            </div>
+                            <div class="dial-card">
+                                <span class="status-label">선두</span>
+                                <strong id="leaderName">나</strong>
+                            </div>
+                        </div>
+
+                        <div class="panel-card controls-card">
+                            <h2>조작</h2>
+                            <div id="controls">
+                                <button id="startBtn">레이스 시작</button>
+                                <button id="boostMeBtn">내 속도 올리기</button>
+                                <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
+                                <button id="resetBtn">리셋</button>
+                            </div>
+                        </div>
+
+                        <div class="panel-card stats-card">
+                            <h2>실시간 스피드</h2>
+                            <div id="racerStats" class="racer-stats"></div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
