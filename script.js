@@ -98,6 +98,14 @@ let lastFrameTime = 0;
 let pathSamples = [];
 let trackLength = 0;
 let raceDurationMs = DEFAULT_RACE_DURATION_SECONDS * 1000;
+let lastLeaderId = null;
+let audioEnabled = false;
+
+const winAudio = new Audio("win.mp3");
+const loseAudio = new Audio("loose.mp3");
+
+winAudio.preload = "auto";
+loseAudio.preload = "auto";
 
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -157,6 +165,23 @@ function getMatchupState() {
     }
 
     return me.progress > opponent.progress ? "ahead" : "behind";
+}
+
+function playLeadAudio(leader) {
+    if (!audioEnabled || !leader) {
+        return;
+    }
+
+    const targetAudio = leader.id === "me" ? winAudio : loseAudio;
+    const otherAudio = leader.id === "me" ? loseAudio : winAudio;
+
+    otherAudio.pause();
+    otherAudio.currentTime = 0;
+
+    targetAudio.currentTime = 0;
+    targetAudio.play().catch(() => {
+        // Ignore playback failures from browser autoplay policies.
+    });
 }
 
 function triggerCourseDisplayEffect(className) {
@@ -546,6 +571,12 @@ function updateUi() {
     myProgress.textContent = `${myDistance}m`;
     courseDisplay.classList.toggle("leader-me", Boolean(leader && leader.id === "me"));
     courseDisplay.classList.toggle("leader-opponent", Boolean(leader && leader.id !== "me"));
+
+    const leaderId = leader ? leader.id : null;
+    if (racing && leaderId && leaderId !== lastLeaderId) {
+        playLeadAudio(leader);
+    }
+    lastLeaderId = leaderId;
 }
 
 function frame(timestamp) {
@@ -573,6 +604,7 @@ function startRace() {
     }
 
     syncRaceDuration();
+    audioEnabled = true;
     racing = true;
     announcement.textContent = `${Math.round(raceDurationMs / 1000)}초 설정의 8자 서킷 레이스가 시작됐습니다.`;
     lastFrameTime = 0;
@@ -624,6 +656,11 @@ function resetRace() {
     winner = null;
     lastFrameTime = 0;
     syncRaceDuration();
+    lastLeaderId = null;
+    winAudio.pause();
+    loseAudio.pause();
+    winAudio.currentTime = 0;
+    loseAudio.currentTime = 0;
 
     if (animationId) {
         cancelAnimationFrame(animationId);
