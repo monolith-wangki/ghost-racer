@@ -102,7 +102,7 @@ let lastLeaderId = null;
 let audioEnabled = false;
 
 const winAudio = new Audio("win.mp3");
-const loseAudio = new Audio("loose.mp3");
+const loseAudio = new Audio("lose.mp3");
 
 winAudio.preload = "auto";
 loseAudio.preload = "auto";

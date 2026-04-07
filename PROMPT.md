@@ -87,8 +87,8 @@
 ```
 
 ```
-win.mp3 와 loose.mp3 를 추가했어.
-내가 선두일 때 win.mp3 를 상대가 선두일 때 loose.mp3 를  출력해줘
+win.mp3 와 lose.mp3 를 추가했어.
+내가 선두일 때 win.mp3 를 상대가 선두일 때 lose.mp3 를  출력해줘
 ```
 
 ```
