@@ -3,71 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dot Race Prototype</title>
+    <title>Ghost Racer Cockpit</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
-        <main id="game-container" class="orbital-layout">
-            <section class="course-orb">
-                <div id="courseDisplay" class="orb-shell">
-                    <div class="course-effect-layer" aria-hidden="true"></div>
-                    <canvas id="raceCanvas" width="760" height="760"></canvas>
+        <header class="scene-header">
+            <p class="eyebrow">KINETIC RACE COCKPIT</p>
+            <h1>Two round displays now move together on the vehicle cockpit.</h1>
+            <p class="scene-copy">
+                The left round display behaves like a live web racing screen,
+                and the right round display reacts like a real speed gauge tied to the race speed.
+            </p>
+        </header>
+
+        <main id="cockpitScene" class="cockpit-scene">
+            <div class="speed-streaks" aria-hidden="true"></div>
+
+            <div id="vehicleStage" class="vehicle-stage">
+                <div class="frame-top" aria-hidden="true"></div>
+                <div class="frame-crossbar" aria-hidden="true"></div>
+                <div class="frame-side side-left" aria-hidden="true"></div>
+                <div class="frame-side side-right" aria-hidden="true"></div>
+                <div class="sensor-row" aria-hidden="true">
+                    <div class="sensor-pod"></div>
+                    <div class="sensor-pod"></div>
                 </div>
-            </section>
 
-            <section class="telemetry-orb">
-                <div class="orb-shell info-shell">
-                    <div class="info-core">
-                        <p class="info-kicker">RACE TELEMETRY</p>
-                        <div class="headline-stack">
-                            <span class="status-label">현재 속도</span>
-                            <strong id="currentSpeed">1.04x</strong>
-                        </div>
-
-                        <div class="dial-grid">
-                            <div class="dial-card primary">
-                                <span class="status-label">레이스 상태</span>
-                                <strong id="raceState">대기 중</strong>
-                            </div>
-                            <div class="dial-card">
-                                <span class="status-label">남은 거리</span>
-                                <strong id="distanceLeft">100m</strong>
-                            </div>
-                            <div class="dial-card">
-                                <span class="status-label">선두</span>
-                                <strong id="leaderName">나</strong>
-                            </div>
-                            <div class="dial-card">
-                                <span class="status-label">내 진행</span>
-                                <strong id="myProgress">0m</strong>
-                            </div>
+                <section class="display-pod pod-left">
+                    <div id="courseDisplay" class="orb-shell course-shell">
+                        <div class="orb-reflection" aria-hidden="true"></div>
+                        <div class="course-effect-layer" aria-hidden="true"></div>
+                        <canvas id="raceCanvas" width="760" height="760" aria-label="Left racing display"></canvas>
+                        <div class="orb-label">
+                            <span>LEFT DISPLAY</span>
+                            <strong>Web Racing View</strong>
                         </div>
                     </div>
+                </section>
+
+                <section class="display-pod pod-right">
+                    <div id="telemetryDisplay" class="orb-shell telemetry-shell">
+                        <div class="orb-reflection" aria-hidden="true"></div>
+                        <canvas id="gaugeCanvas" width="760" height="760" aria-label="Right speed gauge"></canvas>
+                        <div class="orb-label">
+                            <span>RIGHT DISPLAY</span>
+                            <strong>Speed Gauge</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="vent-panel" aria-hidden="true"></div>
+                <div class="center-monitor" aria-hidden="true"></div>
+
+                <div class="steering-assembly" aria-hidden="true">
+                    <div class="steering-column"></div>
+                    <div class="steering-wheel">
+                        <span class="wheel-spoke spoke-top"></span>
+                        <span class="wheel-spoke spoke-left"></span>
+                        <span class="wheel-spoke spoke-right"></span>
+                        <span class="steering-center"></span>
+                    </div>
                 </div>
-            </section>
+
+                <div class="rear-deck" aria-hidden="true">
+                    <div class="deck-button deck-button-small"></div>
+                    <div class="deck-button deck-button-large"></div>
+                    <div class="deck-light"></div>
+                </div>
+
+                <div class="driver-seat" aria-hidden="true">
+                    <div class="seat-shell"></div>
+                    <div class="seat-vibration vibration-left"></div>
+                    <div class="seat-vibration vibration-right"></div>
+                </div>
+
+                <div class="wheel wheel-left" aria-hidden="true"></div>
+                <div class="wheel wheel-right" aria-hidden="true"></div>
+                <div class="lower-rail lower-rail-left" aria-hidden="true"></div>
+                <div class="lower-rail lower-rail-right" aria-hidden="true"></div>
+                <div class="front-bumper" aria-hidden="true"></div>
+            </div>
         </main>
 
-        <section class="panel-card controls-dock">
-            <h2>시뮬레이션 조작</h2>
-            <label class="duration-control" for="raceDurationInput">
-                <span class="status-label">레이스 길이 (초)</span>
-                <input id="raceDurationInput" type="number" min="20" max="300" step="5" value="20">
-            </label>
-            <div id="controls">
-                <button id="startBtn">레이스 시작</button>
-                <button id="boostMeBtn">내 속도 올리기</button>
-                <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
-                <button id="resetBtn">리셋</button>
-                <button id="slowMeBtn">내 속도 내리기</button>
-                <button id="slowOthersBtn">다른 레이서 속도 내리기</button>
+        <section class="panel-card status-ribbon" aria-label="Driving telemetry">
+            <div class="readout-card">
+                <span class="status-label">Race State</span>
+                <strong id="raceState">Standby</strong>
             </div>
-
-            <div id="announcement" class="announcement" aria-live="polite">
-                출발 버튼을 누르면 레이스가 시작됩니다.
+            <div class="readout-card">
+                <span class="status-label">Distance Left</span>
+                <strong id="distanceLeft">1800m</strong>
+            </div>
+            <div class="readout-card">
+                <span class="status-label">Leader</span>
+                <strong id="leaderName">-</strong>
+            </div>
+            <div class="readout-card">
+                <span class="status-label">My Progress</span>
+                <strong id="myProgress">0m</strong>
+            </div>
+            <div class="readout-card readout-accent">
+                <span class="status-label">Live Speed</span>
+                <strong id="currentSpeed">0 km/h</strong>
             </div>
         </section>
 
+        <section class="panel-card controls-dock">
+            <h2>Race Controls</h2>
+            <label class="duration-control" for="raceDurationInput">
+                <span class="status-label">Race Duration (sec)</span>
+                <input id="raceDurationInput" type="number" min="20" max="300" step="5" value="20">
+            </label>
+
+            <div id="controls">
+                <button id="startBtn">Start Race</button>
+                <button id="boostMeBtn">Boost Me</button>
+                <button id="boostOthersBtn">Boost Rival</button>
+                <button id="resetBtn">Reset</button>
+                <button id="slowMeBtn">Slow Me</button>
+                <button id="slowOthersBtn">Slow Rival</button>
+            </div>
+
+            <div id="announcement" class="announcement" aria-live="polite">
+                Press start to shake the vehicle and launch both round racing displays together.
+            </div>
+        </section>
     </div>
     <script src="script.js"></script>
 </body>

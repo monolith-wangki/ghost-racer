@@ -1,6 +1,11 @@
-const canvas = document.getElementById("raceCanvas");
-const ctx = canvas.getContext("2d");
+const raceCanvas = document.getElementById("raceCanvas");
+const raceCtx = raceCanvas.getContext("2d");
+const gaugeCanvas = document.getElementById("gaugeCanvas");
+const gaugeCtx = gaugeCanvas.getContext("2d");
+
 const courseDisplay = document.getElementById("courseDisplay");
+const telemetryDisplay = document.getElementById("telemetryDisplay");
+const cockpitScene = document.getElementById("cockpitScene");
 
 const startBtn = document.getElementById("startBtn");
 const boostMeBtn = document.getElementById("boostMeBtn");
@@ -19,75 +24,18 @@ const announcement = document.getElementById("announcement");
 
 const DISTANCE_METERS = 1800;
 const DEFAULT_RACE_DURATION_SECONDS = 20;
-const BOOST_AMOUNT = 0.2;
-const TRACK_WIDTH = 108;
-const LANE_OFFSETS = [-14, 14];
-const PLAYER_SPEED_RANGE = { min: 0.92, max: 1.12 };
-const OPPONENT_POOL = [
-    { id: "champion", name: "GROC 2025 챔피언", speed: 0.98 },
-    { id: "monthly", name: "이번 달 1위", speed: 1.01 },
-    { id: "today", name: "오늘 1위", speed: 1.06 },
-    { id: "friend", name: "내 친구", speed: 0.96 }
-];
-const OPPONENT_SPEED_VARIANCE = 0.08;
+const BOOST_AMOUNT = 0.18;
+const VIEW_DISTANCE = 0.18;
+const PLAYER_SPEED_RANGE = { min: 0.96, max: 1.08 };
+const SPEED_LIMITS = { min: 0.7, max: 1.95 };
+const OPPONENT_SPEED_VARIANCE = 0.07;
+const TOP_DISPLAY_SPEED = 190;
 
-const TRACK_SEGMENTS = [
-    {
-        type: "curve",
-        from: { x: 296, y: 598 },
-        cp1: { x: 176, y: 602 },
-        cp2: { x: 126, y: 492 },
-        to: { x: 208, y: 402 }
-    },
-    {
-        type: "curve",
-        from: { x: 208, y: 402 },
-        cp1: { x: 266, y: 336 },
-        cp2: { x: 308, y: 244 },
-        to: { x: 288, y: 166 }
-    },
-    {
-        type: "curve",
-        from: { x: 288, y: 166 },
-        cp1: { x: 394, y: 150 },
-        cp2: { x: 456, y: 266 },
-        to: { x: 396, y: 382 }
-    },
-    {
-        type: "curve",
-        from: { x: 396, y: 382 },
-        cp1: { x: 334, y: 484 },
-        cp2: { x: 382, y: 600 },
-        to: { x: 500, y: 596 }
-    },
-    {
-        type: "curve",
-        from: { x: 500, y: 596 },
-        cp1: { x: 620, y: 590 },
-        cp2: { x: 668, y: 474 },
-        to: { x: 558, y: 388 }
-    },
-    {
-        type: "curve",
-        from: { x: 558, y: 388 },
-        cp1: { x: 486, y: 332 },
-        cp2: { x: 450, y: 234 },
-        to: { x: 496, y: 150 }
-    },
-    {
-        type: "curve",
-        from: { x: 496, y: 150 },
-        cp1: { x: 604, y: 162 },
-        cp2: { x: 680, y: 280 },
-        to: { x: 560, y: 386 }
-    },
-    {
-        type: "curve",
-        from: { x: 560, y: 386 },
-        cp1: { x: 452, y: 484 },
-        cp2: { x: 430, y: 602 },
-        to: { x: 296, y: 598 }
-    },
+const OPPONENT_POOL = [
+    { id: "champion", name: "Champion", speed: 1.0, color: "#ff6870" },
+    { id: "rocket", name: "Rocket", speed: 1.04, color: "#ffc14f" },
+    { id: "phantom", name: "Phantom", speed: 0.98, color: "#7cd7ff" },
+    { id: "twin", name: "Twin", speed: 1.02, color: "#ff9de4" }
 ];
 
 let racers = [];
@@ -95,14 +43,14 @@ let racing = false;
 let winner = null;
 let animationId = null;
 let lastFrameTime = 0;
-let pathSamples = [];
-let trackLength = 0;
 let raceDurationMs = DEFAULT_RACE_DURATION_SECONDS * 1000;
 let lastLeaderId = null;
 let audioEnabled = false;
+let currentSpeedKmh = 0;
+let gaugeSpeedKmh = 0;
 
 const winAudio = new Audio("win.mp3");
-const loseAudio = new Audio("lose.mp3");
+const loseAudio = new Audio("loose.mp3");
 
 winAudio.preload = "auto";
 loseAudio.preload = "auto";
@@ -111,35 +59,87 @@ function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
 
-function randomBetween(min, max) {
-    return min + Math.random() * (max - min);
-}
-
 function lerp(start, end, ratio) {
     return start + (end - start) * ratio;
 }
 
-function cubicBezier(p0, p1, p2, p3, t) {
-    const mt = 1 - t;
-    return (
-        mt * mt * mt * p0 +
-        3 * mt * mt * t * p1 +
-        3 * mt * t * t * p2 +
-        t * t * t * p3
-    );
+function mapRange(value, inputMin, inputMax, outputMin, outputMax) {
+    if (inputMax === inputMin) {
+        return outputMin;
+    }
+
+    const ratio = (value - inputMin) / (inputMax - inputMin);
+    return lerp(outputMin, outputMax, ratio);
 }
 
-function cubicDerivative(p0, p1, p2, p3, t) {
-    const mt = 1 - t;
-    return (
-        3 * mt * mt * (p1 - p0) +
-        6 * mt * t * (p2 - p1) +
-        3 * t * t * (p3 - p2)
-    );
+function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function hexToRgba(hex, alpha) {
+    const normalized = hex.replace("#", "");
+    const bigint = Number.parseInt(normalized, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function addRoundedRectPath(context, x, y, width, height, radius) {
+    const safeRadius = Math.min(radius, width / 2, height / 2);
+    context.beginPath();
+    context.moveTo(x + safeRadius, y);
+    context.arcTo(x + width, y, x + width, y + height, safeRadius);
+    context.arcTo(x + width, y + height, x, y + height, safeRadius);
+    context.arcTo(x, y + height, x, y, safeRadius);
+    context.arcTo(x, y, x + width, y, safeRadius);
+    context.closePath();
+}
+
+function fillRoundedRect(context, x, y, width, height, radius, fillStyle) {
+    addRoundedRectPath(context, x, y, width, height, radius);
+    context.fillStyle = fillStyle;
+    context.fill();
+}
+
+function strokeRoundedRect(context, x, y, width, height, radius, strokeStyle, lineWidth) {
+    addRoundedRectPath(context, x, y, width, height, radius);
+    context.lineWidth = lineWidth;
+    context.strokeStyle = strokeStyle;
+    context.stroke();
+}
+
+function fillQuad(context, points, fillStyle) {
+    context.fillStyle = fillStyle;
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    context.lineTo(points[1].x, points[1].y);
+    context.lineTo(points[2].x, points[2].y);
+    context.lineTo(points[3].x, points[3].y);
+    context.closePath();
+    context.fill();
+}
+
+function getPlayer() {
+    return racers.find((racer) => racer.id === "me") || null;
+}
+
+function getOpponent() {
+    return racers.find((racer) => racer.id !== "me") || null;
+}
+
+function getLeader() {
+    return racers.reduce((currentLeader, racer) => {
+        if (!currentLeader || racer.progress > currentLeader.progress) {
+            return racer;
+        }
+
+        return currentLeader;
+    }, null);
 }
 
 function getBaseProgressStep() {
-    const referencePlayerSpeed = 1.04;
+    const referencePlayerSpeed = 1.02;
     return 1 / ((raceDurationMs / 16.6667) * referencePlayerSpeed);
 }
 
@@ -148,13 +148,55 @@ function getProgressBounds() {
     return {
         baseStep,
         minStep: baseStep * 0.55,
-        maxStep: baseStep * 1.85
+        maxStep: baseStep * 1.8
     };
 }
 
+function getCourseCurve(progress) {
+    const t = progress * Math.PI * 2;
+    return (
+        Math.sin(t * 1.05 - 0.6) * 0.68 +
+        Math.sin(t * 2.8 + 0.9) * 0.28 +
+        Math.cos(t * 4.2 - 0.1) * 0.12
+    );
+}
+
+function getCourseBank(progress) {
+    const t = progress * Math.PI * 2;
+    return Math.sin(t * 1.6 + 1.2) * 0.55 + Math.cos(t * 3.2 - 0.2) * 0.15;
+}
+
+function getCurveLabel(curve) {
+    if (curve <= -0.48) {
+        return "Hard Left";
+    }
+
+    if (curve <= -0.16) {
+        return "Left Corner";
+    }
+
+    if (curve >= 0.48) {
+        return "Hard Right";
+    }
+
+    if (curve >= 0.16) {
+        return "Right Corner";
+    }
+
+    return "Full Straight";
+}
+
+function getRaceStateText() {
+    if (winner) {
+        return `${winner.name} wins`;
+    }
+
+    return racing ? "Racing" : "Standby";
+}
+
 function getMatchupState() {
-    const me = racers.find((racer) => racer.id === "me");
-    const opponent = racers.find((racer) => racer.id !== "me");
+    const me = getPlayer();
+    const opponent = getOpponent();
 
     if (!me || !opponent) {
         return null;
@@ -167,83 +209,53 @@ function getMatchupState() {
     return me.progress > opponent.progress ? "ahead" : "behind";
 }
 
+function playAudioClip(audio) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+        // Ignore browser autoplay restrictions.
+    });
+}
+
 function playLeadAudio(leader) {
     if (!audioEnabled || !leader) {
         return;
     }
 
-    const targetAudio = leader.id === "me" ? winAudio : loseAudio;
-    const otherAudio = leader.id === "me" ? loseAudio : winAudio;
+    if (leader.id === "me") {
+        loseAudio.pause();
+        loseAudio.currentTime = 0;
+        playAudioClip(winAudio);
+        return;
+    }
 
-    otherAudio.pause();
-    otherAudio.currentTime = 0;
+    winAudio.pause();
+    winAudio.currentTime = 0;
+    playAudioClip(loseAudio);
+}
 
-    targetAudio.currentTime = 0;
-    targetAudio.play().catch(() => {
-        // Ignore playback failures from browser autoplay policies.
-    });
+function stopRaceAudio() {
+    winAudio.pause();
+    loseAudio.pause();
+    winAudio.currentTime = 0;
+    loseAudio.currentTime = 0;
 }
 
 function triggerCourseDisplayEffect(className) {
     courseDisplay.classList.remove("overtake-boost", "overtake-hit");
-
-    // Restart the animation cleanly when overtakes happen close together.
     void courseDisplay.offsetWidth;
     courseDisplay.classList.add(className);
 }
 
 function syncRaceDuration() {
     const parsedValue = Number.parseInt(raceDurationInput.value, 10);
-    const seconds = clamp(Number.isFinite(parsedValue) ? parsedValue : DEFAULT_RACE_DURATION_SECONDS, 20, 300);
+    const seconds = clamp(
+        Number.isFinite(parsedValue) ? parsedValue : DEFAULT_RACE_DURATION_SECONDS,
+        20,
+        300
+    );
+
     raceDurationInput.value = String(seconds);
     raceDurationMs = seconds * 1000;
-}
-
-function buildPathSamples() {
-    pathSamples = [];
-    trackLength = 0;
-
-    const samples = [];
-    TRACK_SEGMENTS.forEach((segment) => {
-        const resolution = segment.type === "line" ? 28 : 42;
-        for (let step = 0; step <= resolution; step += 1) {
-            if (samples.length > 0 && step === 0) {
-                continue;
-            }
-
-            const t = step / resolution;
-            let x;
-            let y;
-            let dx;
-            let dy;
-
-            if (segment.type === "line") {
-                x = lerp(segment.from.x, segment.to.x, t);
-                y = lerp(segment.from.y, segment.to.y, t);
-                dx = segment.to.x - segment.from.x;
-                dy = segment.to.y - segment.from.y;
-            } else {
-                x = cubicBezier(segment.from.x, segment.cp1.x, segment.cp2.x, segment.to.x, t);
-                y = cubicBezier(segment.from.y, segment.cp1.y, segment.cp2.y, segment.to.y, t);
-                dx = cubicDerivative(segment.from.x, segment.cp1.x, segment.cp2.x, segment.to.x, t);
-                dy = cubicDerivative(segment.from.y, segment.cp1.y, segment.cp2.y, segment.to.y, t);
-            }
-
-            const previous = samples[samples.length - 1];
-            if (previous) {
-                trackLength += Math.hypot(x - previous.x, y - previous.y);
-            }
-
-            samples.push({
-                x,
-                y,
-                angle: Math.atan2(dy, dx),
-                distance: trackLength
-            });
-        }
-    });
-
-    pathSamples = samples;
 }
 
 function createRacer(id, name, color, lane, speed, role) {
@@ -264,267 +276,475 @@ function createInitialRacers() {
     const playerSpeed = randomBetween(PLAYER_SPEED_RANGE.min, PLAYER_SPEED_RANGE.max);
     const opponentSpeed = clamp(
         opponent.speed + randomBetween(-OPPONENT_SPEED_VARIANCE, OPPONENT_SPEED_VARIANCE),
-        0.88,
-        1.14
+        SPEED_LIMITS.min,
+        SPEED_LIMITS.max
     );
 
     return [
-        createRacer("me", "나", "#7af7c4", 0, playerSpeed, "Player"),
-        createRacer(opponent.id, opponent.name, "#ff5c6c", 1, opponentSpeed, "CPU")
+        createRacer("me", "Player", "#79ffb2", 0, playerSpeed, "PLAYER"),
+        createRacer(opponent.id, opponent.name, opponent.color, 1, opponentSpeed, "CPU")
     ];
 }
 
-function getLeader() {
-    return racers.reduce((currentLeader, racer) => {
-        if (!currentLeader || racer.progress > currentLeader.progress) {
-            return racer;
-        }
-        return currentLeader;
-    }, null);
+function setupRace() {
+    racing = false;
+    winner = null;
+    racers = createInitialRacers();
+    lastLeaderId = null;
+    audioEnabled = false;
+    currentSpeedKmh = 0;
+    gaugeSpeedKmh = 0;
+    courseDisplay.classList.remove("overtake-boost", "overtake-hit");
+    telemetryDisplay.classList.remove("speed-hot");
+    stopRaceAudio();
 }
 
-function getSampleAtProgress(progress) {
-    const targetDistance = clamp(progress, 0, 1) * trackLength;
-
-    for (let i = 1; i < pathSamples.length; i += 1) {
-        const prev = pathSamples[i - 1];
-        const next = pathSamples[i];
-        if (targetDistance <= next.distance) {
-            const span = next.distance - prev.distance || 1;
-            const ratio = (targetDistance - prev.distance) / span;
-            return {
-                x: lerp(prev.x, next.x, ratio),
-                y: lerp(prev.y, next.y, ratio),
-                angle: lerp(prev.angle, next.angle, ratio)
-            };
-        }
-    }
-
-    return pathSamples[pathSamples.length - 1];
-}
-
-function getRacerPosition(racer, elapsed) {
-    const sample = getSampleAtProgress(racer.progress);
-    const normalX = -Math.sin(sample.angle);
-    const normalY = Math.cos(sample.angle);
-    const sway = Math.sin(elapsed * 0.004 + racer.wobbleSeed) * 2.5;
-    const offset = LANE_OFFSETS[racer.lane] + sway;
+function getRoadSlice(depth, progress, speedRatio) {
+    const horizonY = 174 - speedRatio * 8 - getCourseBank(progress) * 10;
+    const previewProgress = progress + depth * VIEW_DISTANCE;
+    const curvePreview = getCourseCurve(previewProgress);
+    const depthCurve = Math.pow(depth, 1.18);
+    const y = lerp(horizonY, raceCanvas.height * 0.92, Math.pow(depth, 1.08));
+    const roadWidth = lerp(84, 576, Math.pow(depth, 1.3));
+    const centerX = raceCanvas.width / 2
+        + getCourseCurve(progress) * 54
+        + curvePreview * (44 + depthCurve * 270)
+        + Math.sin(previewProgress * 14) * 6 * (1 - depth);
+    const shoulder = roadWidth * 0.12;
+    const laneWidth = roadWidth * 0.19;
 
     return {
-        x: sample.x + normalX * offset,
-        y: sample.y + normalY * offset,
-        angle: sample.angle
+        y,
+        centerX,
+        roadWidth,
+        shoulder,
+        laneWidth
     };
 }
 
-function drawBackground() {
-    const ground = ctx.createRadialGradient(
-        canvas.width / 2,
-        canvas.height / 2,
-        40,
-        canvas.width / 2,
-        canvas.height / 2,
-        canvas.width / 2
-    );
-    ground.addColorStop(0, "#12263c");
-    ground.addColorStop(0.55, "#0c1a2a");
-    ground.addColorStop(1, "#050b12");
-    ctx.fillStyle = ground;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+function drawMountainLayer(baseY, amplitude, color, shift, opacityBoost) {
+    raceCtx.fillStyle = color;
+    raceCtx.beginPath();
+    raceCtx.moveTo(0, raceCanvas.height);
 
-    ctx.fillStyle = "rgba(30, 82, 52, 0.45)";
-    ctx.beginPath();
-    ctx.arc(208, 208, 112, 0, Math.PI * 2);
-    ctx.arc(566, 564, 126, 0, Math.PI * 2);
-    ctx.arc(560, 192, 84, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    for (let i = 0; i < 22; i += 1) {
-        ctx.beginPath();
-        ctx.arc(80 + (i % 6) * 110, 56 + Math.floor(i / 6) * 42, 2, 0, Math.PI * 2);
-        ctx.fill();
+    for (let step = 0; step <= 8; step += 1) {
+        const x = (step / 8) * raceCanvas.width;
+        const wave = Math.sin(step * 0.92 + shift) * amplitude;
+        const ridge = Math.cos(step * 1.31 - shift * 0.6) * amplitude * opacityBoost;
+        raceCtx.lineTo(x, baseY - wave - ridge);
     }
 
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, 332, 0, Math.PI * 2);
-    ctx.stroke();
+    raceCtx.lineTo(raceCanvas.width, raceCanvas.height);
+    raceCtx.closePath();
+    raceCtx.fill();
 }
 
-function drawTrackBase() {
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+function drawRaceBackground(progress, speedRatio) {
+    const hue = 197 + Math.sin(progress * Math.PI * 2) * 10;
+    const sky = raceCtx.createLinearGradient(0, 0, 0, raceCanvas.height * 0.64);
+    sky.addColorStop(0, `hsl(${hue} 78% 72%)`);
+    sky.addColorStop(0.54, `hsl(${hue + 8} 74% 58%)`);
+    sky.addColorStop(1, "#d8f1ff");
+    raceCtx.fillStyle = sky;
+    raceCtx.fillRect(0, 0, raceCanvas.width, raceCanvas.height);
 
-    ctx.strokeStyle = "rgba(0,0,0,0.32)";
-    ctx.lineWidth = TRACK_WIDTH + 18;
-    ctx.beginPath();
-    ctx.moveTo(pathSamples[0].x, pathSamples[0].y);
-    pathSamples.forEach((sample) => ctx.lineTo(sample.x, sample.y));
-    ctx.stroke();
+    raceCtx.fillStyle = "rgba(255, 255, 255, 0.16)";
+    raceCtx.beginPath();
+    raceCtx.arc(132, 96, 38 + speedRatio * 6, 0, Math.PI * 2);
+    raceCtx.fill();
 
-    const asphalt = ctx.createLinearGradient(0, 120, canvas.width, canvas.height);
-    asphalt.addColorStop(0, "#5d6773");
-    asphalt.addColorStop(1, "#303843");
-    ctx.strokeStyle = asphalt;
-    ctx.lineWidth = TRACK_WIDTH;
-    ctx.beginPath();
-    ctx.moveTo(pathSamples[0].x, pathSamples[0].y);
-    pathSamples.forEach((sample) => ctx.lineTo(sample.x, sample.y));
-    ctx.stroke();
-}
+    drawMountainLayer(234, 58, "rgba(33, 88, 94, 0.48)", progress * 8, 0.45);
+    drawMountainLayer(274, 42, "rgba(58, 123, 88, 0.62)", progress * 6.4 + 0.8, 0.32);
 
-function drawLaneLines() {
-    const boundaryOffsets = [-24, 0, 24];
-
-    boundaryOffsets.forEach((offset) => {
-        ctx.beginPath();
-        pathSamples.forEach((sample, index) => {
-            const normalX = -Math.sin(sample.angle);
-            const normalY = Math.cos(sample.angle);
-            const x = sample.x + normalX * offset;
-            const y = sample.y + normalY * offset;
-
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-
-        ctx.strokeStyle = "rgba(255,255,255,0.22)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([14, 12]);
-        ctx.stroke();
-    });
-
-    ctx.setLineDash([]);
-}
-
-function drawTrackEdge() {
-    const edgeOffsets = [-TRACK_WIDTH / 2, TRACK_WIDTH / 2];
-
-    edgeOffsets.forEach((offset) => {
-        ctx.beginPath();
-        pathSamples.forEach((sample, index) => {
-            const normalX = -Math.sin(sample.angle);
-            const normalY = Math.cos(sample.angle);
-            const x = sample.x + normalX * offset;
-            const y = sample.y + normalY * offset;
-
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-
-        ctx.strokeStyle = "rgba(248,250,252,0.75)";
-        ctx.lineWidth = 4;
-        ctx.stroke();
-    });
-}
-
-function drawFinishLine() {
-    const finish = getSampleAtProgress(1);
-    const normalX = -Math.sin(finish.angle);
-    const normalY = Math.cos(finish.angle);
-    const tangentX = Math.cos(finish.angle);
-    const tangentY = Math.sin(finish.angle);
-    const stripeHalf = TRACK_WIDTH / 2;
-
-    for (let i = -4; i < 4; i += 1) {
-        const startX = finish.x + normalX * (i * 12) - tangentX * 18;
-        const startY = finish.y + normalY * (i * 12) - tangentY * 18;
-        ctx.fillStyle = i % 2 === 0 ? "#f8fafc" : "#111827";
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(startX + tangentX * 36, startY + tangentY * 36);
-        ctx.lineTo(startX + tangentX * 36 + normalX * 12, startY + tangentY * 36 + normalY * 12);
-        ctx.lineTo(startX + normalX * 12, startY + normalY * 12);
-        ctx.closePath();
-        ctx.fill();
+    raceCtx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    for (let cloud = 0; cloud < 5; cloud += 1) {
+        const x = 92 + cloud * 134 + Math.sin(progress * 10 + cloud) * 10;
+        const y = 88 + (cloud % 2) * 26;
+        raceCtx.beginPath();
+        raceCtx.arc(x, y, 18, 0, Math.PI * 2);
+        raceCtx.arc(x + 18, y - 6, 14, 0, Math.PI * 2);
+        raceCtx.arc(x + 34, y, 17, 0, Math.PI * 2);
+        raceCtx.fill();
     }
-
-    ctx.strokeStyle = "rgba(255,255,255,0.65)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(finish.x - normalX * stripeHalf, finish.y - normalY * stripeHalf);
-    ctx.lineTo(finish.x + normalX * stripeHalf, finish.y + normalY * stripeHalf);
-    ctx.stroke();
 }
 
-function drawHud() {
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.font = "700 26px Segoe UI";
-    ctx.textAlign = "center";
-    ctx.fillText("FIGURE EIGHT CIRCUIT", canvas.width / 2, 58);
+function drawTrack(progress, speedRatio) {
+    const stripCount = 72;
+    const stripOffset = Math.floor(progress * 900);
 
-    ctx.font = "600 14px Segoe UI";
-    ctx.fillStyle = "rgba(226,232,240,0.82)";
-    ctx.fillText("Flowing Crossover With Natural Corners", canvas.width / 2, 84);
-    ctx.textAlign = "start";
-}
+    for (let index = 0; index < stripCount; index += 1) {
+        const farDepth = index / stripCount;
+        const nearDepth = (index + 1) / stripCount;
+        const far = getRoadSlice(farDepth, progress, speedRatio);
+        const near = getRoadSlice(nearDepth, progress, speedRatio);
 
-function drawRacers(elapsed) {
-    const ordered = [...racers].sort((a, b) => a.progress - b.progress);
-    const leader = getLeader();
+        const grassColor = (stripOffset + index) % 2 === 0 ? "#77c84e" : "#67b142";
+        raceCtx.fillStyle = grassColor;
+        raceCtx.fillRect(0, far.y, raceCanvas.width, near.y - far.y + 2);
 
-    ordered.forEach((racer) => {
-        const { x, y } = getRacerPosition(racer, elapsed);
-        const isLeader = leader && leader.id === racer.id;
-        const radius = isLeader ? 11 : 9;
+        const farRoadHalf = far.roadWidth / 2;
+        const nearRoadHalf = near.roadWidth / 2;
+        const farOuterHalf = farRoadHalf + far.shoulder;
+        const nearOuterHalf = nearRoadHalf + near.shoulder;
+        const roadShade = 52 + nearDepth * 22;
+        const roadColor = `rgb(${roadShade}, ${roadShade + 2}, ${roadShade + 8})`;
+        const curbColor = (stripOffset + index) % 2 === 0 ? "#fff8f0" : "#ff624e";
 
-        const glow = ctx.createRadialGradient(x, y, 3, x, y, isLeader ? 32 : 24);
-        glow.addColorStop(0, `${racer.color}ff`);
-        glow.addColorStop(0.45, isLeader ? `${racer.color}dd` : `${racer.color}88`);
-        glow.addColorStop(1, `${racer.color}00`);
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, isLeader ? 32 : 24, 0, Math.PI * 2);
-        ctx.fill();
+        fillQuad(raceCtx, [
+            { x: far.centerX - farOuterHalf, y: far.y },
+            { x: far.centerX - farRoadHalf, y: far.y },
+            { x: near.centerX - nearRoadHalf, y: near.y },
+            { x: near.centerX - nearOuterHalf, y: near.y }
+        ], curbColor);
 
-        if (isLeader) {
-            ctx.strokeStyle = "rgba(255,255,255,0.22)";
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
-            ctx.stroke();
+        fillQuad(raceCtx, [
+            { x: far.centerX + farRoadHalf, y: far.y },
+            { x: far.centerX + farOuterHalf, y: far.y },
+            { x: near.centerX + nearOuterHalf, y: near.y },
+            { x: near.centerX + nearRoadHalf, y: near.y }
+        ], curbColor);
+
+        fillQuad(raceCtx, [
+            { x: far.centerX - farRoadHalf, y: far.y },
+            { x: far.centerX + farRoadHalf, y: far.y },
+            { x: near.centerX + nearRoadHalf, y: near.y },
+            { x: near.centerX - nearRoadHalf, y: near.y }
+        ], roadColor);
+
+        if (index % 6 < 3 && index > 4) {
+            const stripeWidthFar = Math.max(3, far.roadWidth * 0.018);
+            const stripeWidthNear = Math.max(4, near.roadWidth * 0.026);
+
+            fillQuad(raceCtx, [
+                { x: far.centerX - stripeWidthFar, y: far.y },
+                { x: far.centerX + stripeWidthFar, y: far.y },
+                { x: near.centerX + stripeWidthNear, y: near.y },
+                { x: near.centerX - stripeWidthNear, y: near.y }
+            ], "rgba(255, 255, 255, 0.78)");
         }
+    }
 
-        ctx.fillStyle = racer.color;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
+    const edgeGlow = raceCtx.createLinearGradient(0, raceCanvas.height * 0.24, 0, raceCanvas.height);
+    edgeGlow.addColorStop(0, "rgba(255,255,255,0)");
+    edgeGlow.addColorStop(1, "rgba(255,255,255,0.08)");
+    raceCtx.fillStyle = edgeGlow;
+    raceCtx.fillRect(0, raceCanvas.height * 0.24, raceCanvas.width, raceCanvas.height * 0.72);
+}
 
-        ctx.strokeStyle = isLeader ? "#ffffff" : "rgba(255,255,255,0.65)";
-        ctx.lineWidth = isLeader ? 4 : 2;
-        ctx.beginPath();
-        ctx.arc(x, y, radius + (isLeader ? 3 : 2), 0, Math.PI * 2);
-        ctx.stroke();
+function drawRaceCarSprite(racer, x, y, scale, elapsed, isLeader) {
+    const width = 100 * scale;
+    const height = 48 * scale;
+    const bob = Math.sin(elapsed * 0.009 + racer.wobbleSeed) * 2.2;
 
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.font = isLeader ? "700 14px Segoe UI" : "600 13px Segoe UI";
-        ctx.textAlign = "center";
-        ctx.fillText(racer.name, x, y - (isLeader ? 24 : 16));
+    raceCtx.save();
+    raceCtx.translate(x, y + bob);
+
+    const glow = raceCtx.createRadialGradient(0, height * 0.1, 8, 0, 0, width);
+    glow.addColorStop(0, hexToRgba(racer.color, isLeader ? 0.46 : 0.28));
+    glow.addColorStop(1, hexToRgba(racer.color, 0));
+    raceCtx.fillStyle = glow;
+    raceCtx.beginPath();
+    raceCtx.ellipse(0, 0, width * 0.95, height * 1.05, 0, 0, Math.PI * 2);
+    raceCtx.fill();
+
+    raceCtx.fillStyle = "rgba(6, 10, 16, 0.34)";
+    raceCtx.beginPath();
+    raceCtx.ellipse(0, height * 0.72, width * 0.78, height * 0.36, 0, 0, Math.PI * 2);
+    raceCtx.fill();
+
+    fillRoundedRect(raceCtx, -width / 2, -height * 0.42, width, height, 16 * scale, racer.color);
+    fillRoundedRect(raceCtx, -width * 0.25, -height * 0.88, width * 0.5, height * 0.38, 11 * scale, "#edf4ff");
+    fillRoundedRect(raceCtx, -width * 0.52, -height * 0.04, width * 0.18, height * 0.52, 8 * scale, "#0f141b");
+    fillRoundedRect(raceCtx, width * 0.34, -height * 0.04, width * 0.18, height * 0.52, 8 * scale, "#0f141b");
+    fillRoundedRect(raceCtx, -width * 0.58, -height * 0.45, width * 0.18, height * 0.26, 6 * scale, "#171d24");
+    fillRoundedRect(raceCtx, width * 0.4, -height * 0.45, width * 0.18, height * 0.26, 6 * scale, "#171d24");
+
+    if (isLeader) {
+        strokeRoundedRect(
+            raceCtx,
+            -width * 0.58,
+            -height * 0.58,
+            width * 1.16,
+            height * 1.06,
+            20 * scale,
+            "rgba(255, 255, 255, 0.8)",
+            Math.max(2, 4 * scale)
+        );
+    }
+
+    raceCtx.fillStyle = "rgba(255, 255, 255, 0.96)";
+    raceCtx.font = `${Math.max(16, Math.round(20 * scale))}px Bahnschrift, Segoe UI, sans-serif`;
+    raceCtx.textAlign = "center";
+    raceCtx.fillText(racer.name, 0, -height * 1.22);
+
+    raceCtx.restore();
+}
+
+function drawCenterRacePair(progress, elapsed, speedRatio) {
+    const me = getPlayer();
+    const opponent = getOpponent();
+
+    if (!me || !opponent) {
+        return;
+    }
+
+    const battleSlice = getRoadSlice(0.64, progress, speedRatio);
+    const gapMeters = (me.progress - opponent.progress) * DISTANCE_METERS;
+    const normalizedGap = clamp(Math.abs(gapMeters) / 160, 0, 1);
+    const lateralSpread = battleSlice.laneWidth * 1.9 + normalizedGap * 16;
+    const pairCenterX = battleSlice.centerX;
+    const pairCenterY = battleSlice.y - 26;
+
+    const meAhead = me.progress >= opponent.progress;
+    const mePosition = {
+        x: pairCenterX - lateralSpread / 2,
+        y: pairCenterY + (meAhead ? -(58 + normalizedGap * 30) : 18 + normalizedGap * 12),
+        scale: meAhead ? 0.82 - normalizedGap * 0.08 : 1.02 - normalizedGap * 0.04
+    };
+    const opponentPosition = {
+        x: pairCenterX + lateralSpread / 2,
+        y: pairCenterY + (meAhead ? 18 + normalizedGap * 12 : -(58 + normalizedGap * 30)),
+        scale: meAhead ? 1.02 - normalizedGap * 0.04 : 0.82 - normalizedGap * 0.08
+    };
+
+    raceCtx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    raceCtx.beginPath();
+    raceCtx.ellipse(pairCenterX, pairCenterY + 34, lateralSpread * 0.98, 30, 0, 0, Math.PI * 2);
+    raceCtx.fill();
+
+    const drawOrder = [
+        { racer: me, ...mePosition, isLeader: meAhead },
+        { racer: opponent, ...opponentPosition, isLeader: !meAhead }
+    ].sort((a, b) => a.scale - b.scale);
+
+    drawOrder.forEach((entry) => {
+        drawRaceCarSprite(entry.racer, entry.x, entry.y, entry.scale, elapsed, entry.isLeader);
     });
-
-    ctx.textAlign = "start";
 }
 
-function renderScene(elapsed) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBackground();
-    drawTrackBase();
-    drawLaneLines();
-    drawTrackEdge();
-    drawFinishLine();
-    drawHud();
-    drawRacers(elapsed);
+function drawRaceHud(curve) {
+    const me = getPlayer();
+    const opponent = getOpponent();
+    const leader = getLeader();
+    const myDistance = me ? Math.round(me.progress * DISTANCE_METERS) : 0;
+    const progressRatio = me ? me.progress : 0;
+    const gapMeters = me && opponent ? Math.round((me.progress - opponent.progress) * DISTANCE_METERS) : 0;
+    const gapText = gapMeters >= 0 ? `+${gapMeters}m lead` : `${Math.abs(gapMeters)}m chase`;
+    const positionText = leader && leader.id === "me" ? "1 / 2" : "2 / 2";
+
+    fillRoundedRect(raceCtx, 24, 24, 190, 48, 20, "rgba(7, 13, 21, 0.56)");
+    fillRoundedRect(raceCtx, 542, 24, 194, 48, 20, "rgba(7, 13, 21, 0.56)");
+    fillRoundedRect(raceCtx, 24, 84, 230, 108, 24, "rgba(7, 13, 21, 0.44)");
+    fillRoundedRect(raceCtx, 514, 84, 222, 108, 24, "rgba(7, 13, 21, 0.44)");
+    fillRoundedRect(raceCtx, 214, 684, 332, 44, 22, "rgba(7, 13, 21, 0.56)");
+
+    raceCtx.fillStyle = "#87ffc7";
+    raceCtx.font = "700 18px Bahnschrift, Segoe UI, sans-serif";
+    raceCtx.fillText("LEFT DISPLAY", 42, 54);
+    raceCtx.fillStyle = "rgba(255,255,255,0.8)";
+    raceCtx.fillText("LIVE RACE VIEW", 560, 54);
+
+    raceCtx.fillStyle = "rgba(255,255,255,0.72)";
+    raceCtx.font = "600 20px Bahnschrift, Segoe UI, sans-serif";
+    raceCtx.fillText("STATE", 48, 118);
+    raceCtx.fillText("POSITION", 542, 118);
+    raceCtx.fillText("TRACK", 48, 154);
+    raceCtx.fillText("GAP", 542, 154);
+
+    raceCtx.fillStyle = "#ffffff";
+    raceCtx.font = "700 26px Bahnschrift, Segoe UI, sans-serif";
+    raceCtx.fillText(getRaceStateText(), 104, 148);
+    raceCtx.fillText(positionText, 604, 148);
+    raceCtx.fillText(getCurveLabel(curve), 104, 184);
+    raceCtx.fillText(gapText, 604, 184);
+
+    raceCtx.fillStyle = "rgba(255,255,255,0.7)";
+    raceCtx.font = "600 18px Bahnschrift, Segoe UI, sans-serif";
+    raceCtx.textAlign = "center";
+    raceCtx.fillText(`My progress ${myDistance}m`, raceCanvas.width / 2, 712);
+    raceCtx.textAlign = "start";
+
+    fillRoundedRect(raceCtx, 238, 694, 286, 16, 10, "rgba(255,255,255,0.12)");
+    const progressGradient = raceCtx.createLinearGradient(238, 0, 524, 0);
+    progressGradient.addColorStop(0, "#79ffb2");
+    progressGradient.addColorStop(1, "#56b5ff");
+    fillRoundedRect(raceCtx, 238, 694, 286 * progressRatio, 16, 10, progressGradient);
 }
 
-function updateRace(delta) {
+function drawRaceDisplay(elapsed) {
+    const me = getPlayer();
+    const progress = me ? me.progress : 0;
+    const speedRatio = clamp(currentSpeedKmh / TOP_DISPLAY_SPEED, 0, 1);
+    const curve = getCourseCurve(progress);
+
+    raceCtx.clearRect(0, 0, raceCanvas.width, raceCanvas.height);
+    drawRaceBackground(progress, speedRatio);
+    drawTrack(progress, speedRatio);
+    drawCenterRacePair(progress, elapsed, speedRatio);
+    drawRaceHud(curve);
+}
+
+function speedToAngle(speed) {
+    const startAngle = Math.PI * 0.78;
+    const endAngle = Math.PI * 2.22;
+    return mapRange(speed, 0, TOP_DISPLAY_SPEED, startAngle, endAngle);
+}
+
+function drawGaugeChip(x, y, width, label, value, accentColor) {
+    fillRoundedRect(gaugeCtx, x, y, width, 56, 22, "rgba(255, 255, 255, 0.04)");
+    strokeRoundedRect(gaugeCtx, x, y, width, 56, 22, "rgba(255, 255, 255, 0.06)", 1);
+
+    gaugeCtx.fillStyle = "rgba(255,255,255,0.6)";
+    gaugeCtx.font = "600 16px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.textAlign = "center";
+    gaugeCtx.textBaseline = "alphabetic";
+    gaugeCtx.fillText(label, x + width / 2, y + 20);
+
+    gaugeCtx.fillStyle = accentColor;
+    gaugeCtx.font = "700 24px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText(value, x + width / 2, y + 42);
+}
+
+function drawGaugeDisplay() {
+    const me = getPlayer();
+    const opponent = getOpponent();
+    const leader = getLeader();
+    const progress = me ? me.progress : 0;
+    const remaining = leader
+        ? Math.max(0, DISTANCE_METERS - Math.round(leader.progress * DISTANCE_METERS))
+        : DISTANCE_METERS;
+    const gapMeters = me && opponent ? Math.round((me.progress - opponent.progress) * DISTANCE_METERS) : 0;
+    const centerX = gaugeCanvas.width / 2;
+    const centerY = gaugeCanvas.height / 2;
+    const radius = 252;
+    const displaySpeed = Math.round(gaugeSpeedKmh);
+    const rpm = Math.round(mapRange(displaySpeed, 0, TOP_DISPLAY_SPEED, 900, 7800));
+    const needleAngle = speedToAngle(gaugeSpeedKmh);
+    const zoneStart = speedToAngle(0);
+    const zoneEnd = speedToAngle(TOP_DISPLAY_SPEED);
+
+    gaugeCtx.clearRect(0, 0, gaugeCanvas.width, gaugeCanvas.height);
+
+    const face = gaugeCtx.createRadialGradient(centerX, centerY - 40, 30, centerX, centerY, 360);
+    face.addColorStop(0, "#19222c");
+    face.addColorStop(0.54, "#091119");
+    face.addColorStop(1, "#02070b");
+    gaugeCtx.fillStyle = face;
+    gaugeCtx.fillRect(0, 0, gaugeCanvas.width, gaugeCanvas.height);
+
+    gaugeCtx.strokeStyle = "rgba(255,255,255,0.08)";
+    gaugeCtx.lineWidth = 28;
+    gaugeCtx.beginPath();
+    gaugeCtx.arc(centerX, centerY, radius, zoneStart, zoneEnd);
+    gaugeCtx.stroke();
+
+    const activeArc = gaugeCtx.createLinearGradient(160, 100, 620, 620);
+    activeArc.addColorStop(0, "#79ffb2");
+    activeArc.addColorStop(0.58, "#56b5ff");
+    activeArc.addColorStop(0.88, "#ffb04a");
+    activeArc.addColorStop(1, "#ff6169");
+    gaugeCtx.strokeStyle = activeArc;
+    gaugeCtx.lineWidth = 20;
+    gaugeCtx.beginPath();
+    gaugeCtx.arc(centerX, centerY, radius, zoneStart, needleAngle);
+    gaugeCtx.stroke();
+
+    gaugeCtx.strokeStyle = "rgba(255, 97, 105, 0.6)";
+    gaugeCtx.lineWidth = 22;
+    gaugeCtx.beginPath();
+    gaugeCtx.arc(centerX, centerY, radius, speedToAngle(152), zoneEnd);
+    gaugeCtx.stroke();
+
+    for (let value = 0; value <= TOP_DISPLAY_SPEED; value += 10) {
+        const angle = speedToAngle(value);
+        const isMajor = value % 20 === 0;
+        const inner = radius - (isMajor ? 56 : 34);
+        const outer = radius - 8;
+        const tickColor = value >= 150 ? "rgba(255,118,109,0.92)" : "rgba(255,255,255,0.82)";
+
+        gaugeCtx.strokeStyle = tickColor;
+        gaugeCtx.lineWidth = isMajor ? 5 : 2;
+        gaugeCtx.beginPath();
+        gaugeCtx.moveTo(
+            centerX + Math.cos(angle) * inner,
+            centerY + Math.sin(angle) * inner
+        );
+        gaugeCtx.lineTo(
+            centerX + Math.cos(angle) * outer,
+            centerY + Math.sin(angle) * outer
+        );
+        gaugeCtx.stroke();
+
+        if (isMajor) {
+            const labelRadius = radius - 92;
+            gaugeCtx.fillStyle = "rgba(255,255,255,0.9)";
+            gaugeCtx.font = "700 26px Bahnschrift, Segoe UI, sans-serif";
+            gaugeCtx.textAlign = "center";
+            gaugeCtx.textBaseline = "middle";
+            gaugeCtx.fillText(
+                String(value),
+                centerX + Math.cos(angle) * labelRadius,
+                centerY + Math.sin(angle) * labelRadius
+            );
+        }
+    }
+
+    drawGaugeChip(78, 126, 166, "LEADER", leader ? leader.name : "-", "#79ffb2");
+    drawGaugeChip(516, 126, 166, "GAP", `${gapMeters >= 0 ? "+" : "-"}${Math.abs(gapMeters)}m`, "#56b5ff");
+
+    gaugeCtx.fillStyle = "#ffffff";
+    gaugeCtx.textAlign = "center";
+    gaugeCtx.textBaseline = "middle";
+    gaugeCtx.font = "800 148px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText(String(displaySpeed), centerX, centerY + 18);
+
+    gaugeCtx.fillStyle = "rgba(255,255,255,0.82)";
+    gaugeCtx.font = "700 36px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText("km/h", centerX, centerY + 104);
+
+    gaugeCtx.fillStyle = "rgba(255,255,255,0.68)";
+    gaugeCtx.font = "600 20px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText(getRaceStateText(), centerX, centerY - 110);
+    gaugeCtx.fillText(getCurveLabel(getCourseCurve(progress)), centerX, centerY - 82);
+
+    fillRoundedRect(gaugeCtx, centerX - 122, centerY + 156, 244, 64, 30, "rgba(255,255,255,0.06)");
+    strokeRoundedRect(gaugeCtx, centerX - 122, centerY + 156, 244, 64, 30, "rgba(255,255,255,0.08)", 1);
+    gaugeCtx.fillStyle = "rgba(255,255,255,0.56)";
+    gaugeCtx.font = "600 18px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText("REMAINING", centerX, centerY + 182);
+    gaugeCtx.fillStyle = "#ffffff";
+    gaugeCtx.font = "800 44px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText(`${remaining}m`, centerX, centerY + 214);
+
+    gaugeCtx.fillStyle = "rgba(255,255,255,0.56)";
+    gaugeCtx.font = "600 18px Bahnschrift, Segoe UI, sans-serif";
+    gaugeCtx.fillText(`RPM ${rpm}`, centerX, centerY + 256);
+
+    const needleGradient = gaugeCtx.createLinearGradient(centerX, centerY, centerX + 140, centerY - 80);
+    needleGradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+    needleGradient.addColorStop(1, "rgba(255, 192, 92, 0.95)");
+    gaugeCtx.strokeStyle = needleGradient;
+    gaugeCtx.lineWidth = 8;
+    gaugeCtx.lineCap = "round";
+    gaugeCtx.beginPath();
+    gaugeCtx.moveTo(centerX, centerY);
+    gaugeCtx.lineTo(
+        centerX + Math.cos(needleAngle) * (radius - 84),
+        centerY + Math.sin(needleAngle) * (radius - 84)
+    );
+    gaugeCtx.stroke();
+
+    gaugeCtx.fillStyle = "#0f151d";
+    gaugeCtx.beginPath();
+    gaugeCtx.arc(centerX, centerY, 34, 0, Math.PI * 2);
+    gaugeCtx.fill();
+    gaugeCtx.fillStyle = "#f7f9fc";
+    gaugeCtx.beginPath();
+    gaugeCtx.arc(centerX, centerY, 14, 0, Math.PI * 2);
+    gaugeCtx.fill();
+}
+
+function updateRace(delta, elapsed) {
     if (!racing) {
         return;
     }
@@ -533,9 +753,15 @@ function updateRace(delta) {
     const { baseStep, minStep, maxStep } = getProgressBounds();
 
     racers.forEach((racer) => {
-        const randomFactor = 0.88 + Math.random() * 0.32;
+        const curvePenalty = 1 - Math.abs(getCourseCurve(racer.progress + elapsed * 0.00003)) * 0.08;
+        const randomFactor = 0.92 + Math.random() * 0.18;
         const deltaBoost = delta / 16.6667;
-        const step = clamp(racer.speed * baseStep * randomFactor * deltaBoost, minStep, maxStep);
+        const step = clamp(
+            racer.speed * baseStep * curvePenalty * randomFactor * deltaBoost,
+            minStep,
+            maxStep
+        );
+
         racer.progress = clamp(racer.progress + step, 0, 1);
     });
 
@@ -552,131 +778,152 @@ function updateRace(delta) {
     if (finisher) {
         winner = finisher;
         racing = false;
-        announcement.textContent = `${finisher.name}가 기하학적인 서킷을 가장 먼저 완주했습니다.`;
+        playLeadAudio(finisher);
+        announcement.textContent = `${finisher.name} crossed the finish line first. Both displays stay locked on the final race state.`;
     }
+}
+
+function updateMotionAndSpeed(elapsed) {
+    const me = getPlayer();
+    const speedRatio = clamp((me ? me.speed : 0) / SPEED_LIMITS.max, 0, 1);
+    const progress = me ? me.progress : 0;
+    const curve = getCourseCurve(progress + elapsed * 0.00002);
+    const pulse = Math.sin(elapsed * 0.015 * (0.9 + speedRatio)) * (2.4 + speedRatio * 8);
+    const targetSpeed = racing
+        ? clamp(
+            44 +
+            (me ? me.speed * 72 : 0) +
+            Math.sin(elapsed * 0.004) * 6 -
+            Math.abs(curve) * 18 +
+            speedRatio * 18,
+            38,
+            TOP_DISPLAY_SPEED
+        )
+        : 0;
+
+    currentSpeedKmh = lerp(currentSpeedKmh, targetSpeed, racing ? 0.08 : 0.05);
+    gaugeSpeedKmh = lerp(gaugeSpeedKmh, currentSpeedKmh, racing ? 0.18 : 0.1);
+
+    cockpitScene.style.setProperty("--vehicle-roll", `${(curve * (1.6 + speedRatio * 2.4)).toFixed(2)}deg`);
+    cockpitScene.style.setProperty("--vehicle-bounce", `${pulse.toFixed(2)}px`);
+    cockpitScene.style.setProperty("--vehicle-shift", `${(curve * 16 * speedRatio).toFixed(2)}px`);
+    cockpitScene.style.setProperty("--steer-angle", `${(curve * (8 + speedRatio * 18)).toFixed(2)}deg`);
+    cockpitScene.style.setProperty("--streak-opacity", (currentSpeedKmh / TOP_DISPLAY_SPEED * 0.72).toFixed(2));
+    cockpitScene.style.setProperty("--vibration-opacity", (0.18 + currentSpeedKmh / TOP_DISPLAY_SPEED * 0.6).toFixed(2));
 }
 
 function updateUi() {
     const leader = getLeader();
-    const me = racers.find((racer) => racer.id === "me");
+    const me = getPlayer();
     const remaining = leader
         ? Math.max(0, DISTANCE_METERS - Math.round(leader.progress * DISTANCE_METERS))
         : DISTANCE_METERS;
     const myDistance = me ? Math.round(me.progress * DISTANCE_METERS) : 0;
+    const leaderId = leader ? leader.id : null;
 
-    raceState.textContent = winner ? `${winner.name} 승리` : racing ? "진행 중" : "대기 중";
+    raceState.textContent = getRaceStateText();
     distanceLeft.textContent = `${remaining}m`;
     leaderName.textContent = leader ? leader.name : "-";
-    currentSpeed.textContent = me ? `${me.speed.toFixed(2)}x` : "-";
+    currentSpeed.textContent = `${Math.round(currentSpeedKmh)} km/h`;
     myProgress.textContent = `${myDistance}m`;
+
     courseDisplay.classList.toggle("leader-me", Boolean(leader && leader.id === "me"));
     courseDisplay.classList.toggle("leader-opponent", Boolean(leader && leader.id !== "me"));
+    telemetryDisplay.classList.toggle("leader-me", Boolean(leader && leader.id === "me"));
+    telemetryDisplay.classList.toggle("leader-opponent", Boolean(leader && leader.id !== "me"));
+    telemetryDisplay.classList.toggle("speed-hot", currentSpeedKmh >= 150);
 
-    const leaderId = leader ? leader.id : null;
     if (racing && lastLeaderId && leaderId && leaderId !== lastLeaderId) {
         playLeadAudio(leader);
     }
+
     lastLeaderId = leaderId;
 }
 
 function frame(timestamp) {
-    if (!lastFrameTime) {
-        lastFrameTime = timestamp;
-    }
-
-    const delta = timestamp - lastFrameTime;
+    const delta = lastFrameTime ? timestamp - lastFrameTime : 16.6667;
     lastFrameTime = timestamp;
 
-    updateRace(delta);
-    renderScene(timestamp);
+    updateRace(delta, timestamp);
+    updateMotionAndSpeed(timestamp);
+    drawRaceDisplay(timestamp);
+    drawGaugeDisplay();
     updateUi();
 
-    if (racing) {
+    animationId = requestAnimationFrame(frame);
+}
+
+function ensureLoop() {
+    if (!animationId) {
         animationId = requestAnimationFrame(frame);
-    } else {
-        animationId = null;
     }
 }
 
 function startRace() {
-    if (racing || winner) {
+    if (racing) {
         return;
+    }
+
+    if (winner) {
+        setupRace();
     }
 
     syncRaceDuration();
     audioEnabled = true;
-    lastLeaderId = getLeader()?.id ?? null;
+    lastLeaderId = getLeader() ? getLeader().id : null;
     racing = true;
-    announcement.textContent = `${Math.round(raceDurationMs / 1000)}초 설정의 8자 서킷 레이스가 시작됐습니다.`;
-    lastFrameTime = 0;
-    animationId = requestAnimationFrame(frame);
+    announcement.textContent = `${Math.round(raceDurationMs / 1000)} second race started. Vehicle motion and both round displays are now reacting together.`;
 }
 
 function boostMe() {
-    const me = racers.find((racer) => racer.id === "me");
-    me.speed = clamp(me.speed + BOOST_AMOUNT, 0.6, 2.4);
-    announcement.textContent = `내 레이서의 속도가 ${me.speed.toFixed(2)}배로 올라갔습니다.`;
-    updateUi();
-    renderScene(performance.now());
+    const me = getPlayer();
+    if (!me) {
+        return;
+    }
+
+    me.speed = clamp(me.speed + BOOST_AMOUNT, SPEED_LIMITS.min, SPEED_LIMITS.max);
+    announcement.textContent = `Player speed boosted to ${me.speed.toFixed(2)}x. The right gauge should react more aggressively now.`;
 }
 
 function boostOthers() {
     racers
         .filter((racer) => racer.id !== "me")
         .forEach((racer) => {
-            racer.speed = clamp(racer.speed + BOOST_AMOUNT, 0.6, 2.4);
+            racer.speed = clamp(racer.speed + BOOST_AMOUNT, SPEED_LIMITS.min, SPEED_LIMITS.max);
         });
 
-    announcement.textContent = "다른 레이서들의 속도를 올려서 코스 흐름이 더 거칠어졌습니다.";
-    updateUi();
-    renderScene(performance.now());
+    announcement.textContent = "Rival speed boosted. Expect more pressure and more close chasing moments on the left display.";
 }
 
 function slowMe() {
-    const me = racers.find((racer) => racer.id === "me");
-    me.speed = clamp(me.speed - BOOST_AMOUNT, 0.6, 2.4);
-    announcement.textContent = `내 레이서의 속도가 ${me.speed.toFixed(2)}배로 내려갔습니다.`;
-    updateUi();
-    renderScene(performance.now());
+    const me = getPlayer();
+    if (!me) {
+        return;
+    }
+
+    me.speed = clamp(me.speed - BOOST_AMOUNT, SPEED_LIMITS.min, SPEED_LIMITS.max);
+    announcement.textContent = `Player speed reduced to ${me.speed.toFixed(2)}x.`;
 }
 
 function slowOthers() {
     racers
         .filter((racer) => racer.id !== "me")
         .forEach((racer) => {
-            racer.speed = clamp(racer.speed - BOOST_AMOUNT, 0.6, 2.4);
+            racer.speed = clamp(racer.speed - BOOST_AMOUNT, SPEED_LIMITS.min, SPEED_LIMITS.max);
         });
 
-    announcement.textContent = "다른 레이서들의 속도를 낮춰서 추격 흐름이 느려졌습니다.";
-    updateUi();
-    renderScene(performance.now());
+    announcement.textContent = "Rival speed reduced. It should be easier to hold the lead now.";
 }
 
 function resetRace() {
-    racing = false;
-    winner = null;
-    lastFrameTime = 0;
     syncRaceDuration();
-    lastLeaderId = null;
-    winAudio.pause();
-    loseAudio.pause();
-    winAudio.currentTime = 0;
-    loseAudio.currentTime = 0;
-
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-
-    racers = createInitialRacers();
-    courseDisplay.classList.remove("overtake-boost", "overtake-hit");
-    announcement.textContent = "출발 버튼을 누르면 8자 코스 레이스가 시작됩니다.";
-    renderScene(performance.now());
-    updateUi();
+    setupRace();
+    announcement.textContent = "Race reset. Press start to launch the cockpit motion and both round displays again.";
 }
 
-buildPathSamples();
 syncRaceDuration();
+setupRace();
+ensureLoop();
 
 startBtn.addEventListener("click", startRace);
 boostMeBtn.addEventListener("click", boostMe);
@@ -688,5 +935,3 @@ raceDurationInput.addEventListener("change", syncRaceDuration);
 courseDisplay.addEventListener("animationend", () => {
     courseDisplay.classList.remove("overtake-boost", "overtake-hit");
 });
-
-resetRace();
