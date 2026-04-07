@@ -441,6 +441,53 @@ function drawTrack(progress, speedRatio) {
     drawTrackOn(raceCtx, raceCanvas, progress, speedRatio);
 }
 
+function drawFinishLineMarkerOn(context, progress, speedRatio) {
+    const leader = getLeader();
+    if (!leader) {
+        return;
+    }
+
+    const showStartProgress = 0.82;
+    if (leader.progress < showStartProgress) {
+        return;
+    }
+
+    const approach = clamp((leader.progress - showStartProgress) / (1 - showStartProgress), 0, 1);
+    const depth = lerp(0.28, 0.9, approach);
+    const finishSlice = getRoadSlice(depth, progress, speedRatio);
+    const bandHeight = lerp(10, 42, approach);
+    const roadLeft = finishSlice.centerX - finishSlice.roadWidth / 2;
+    const checkerCols = 12;
+    const checkerRows = 2;
+    const tileWidth = finishSlice.roadWidth / checkerCols;
+    const tileHeight = bandHeight / checkerRows;
+    const alpha = 0.4 + approach * 0.55;
+
+    for (let row = 0; row < checkerRows; row += 1) {
+        for (let col = 0; col < checkerCols; col += 1) {
+            context.fillStyle = (row + col) % 2 === 0
+                ? `rgba(250, 252, 255, ${alpha})`
+                : `rgba(22, 28, 36, ${Math.min(0.92, alpha + 0.2)})`;
+            context.fillRect(
+                roadLeft + col * tileWidth,
+                finishSlice.y - bandHeight,
+                tileWidth + 1,
+                tileHeight + 1
+            );
+        }
+    }
+
+    context.fillStyle = `rgba(255, 255, 255, ${0.52 + approach * 0.42})`;
+    context.font = `700 ${Math.round(18 + approach * 12)}px Bahnschrift, Segoe UI, sans-serif`;
+    context.textAlign = "center";
+    context.fillText("FINISH", finishSlice.centerX, finishSlice.y - bandHeight - (12 + approach * 10));
+    context.textAlign = "start";
+}
+
+function drawFinishLineMarker(progress, speedRatio) {
+    drawFinishLineMarkerOn(raceCtx, progress, speedRatio);
+}
+
 function drawRaceCarSprite(context, racer, x, y, scale, elapsed, isLeader) {
     const width = 100 * scale;
     const height = 48 * scale;
@@ -491,31 +538,12 @@ function drawRaceCarSprite(context, racer, x, y, scale, elapsed, isLeader) {
 }
 
 function drawCenterRacePair(progress, elapsed, speedRatio) {
-    const me = getPlayer();
-    const opponent = getOpponent();
-
-    if (!me || !opponent) {
+    const pairState = getBattlePairState(progress, speedRatio);
+    if (!pairState) {
         return;
     }
 
-    const battleSlice = getRoadSlice(0.64, progress, speedRatio);
-    const gapMeters = (me.progress - opponent.progress) * DISTANCE_METERS;
-    const normalizedGap = clamp(Math.abs(gapMeters) / 160, 0, 1);
-    const lateralSpread = battleSlice.laneWidth * 1.9 + normalizedGap * 16;
-    const pairCenterX = battleSlice.centerX;
-    const pairCenterY = battleSlice.y - 26;
-
-    const meAhead = me.progress >= opponent.progress;
-    const mePosition = {
-        x: pairCenterX - lateralSpread / 2,
-        y: pairCenterY + (meAhead ? -(58 + normalizedGap * 30) : 18 + normalizedGap * 12),
-        scale: meAhead ? 0.82 - normalizedGap * 0.08 : 1.02 - normalizedGap * 0.04
-    };
-    const opponentPosition = {
-        x: pairCenterX + lateralSpread / 2,
-        y: pairCenterY + (meAhead ? 18 + normalizedGap * 12 : -(58 + normalizedGap * 30)),
-        scale: meAhead ? 1.02 - normalizedGap * 0.04 : 0.82 - normalizedGap * 0.08
-    };
+    const { pairCenterX, pairCenterY, lateralSpread, mePosition, opponentPosition, me, opponent } = pairState;
 
     raceCtx.fillStyle = "rgba(255, 255, 255, 0.08)";
     raceCtx.beginPath();
@@ -523,8 +551,8 @@ function drawCenterRacePair(progress, elapsed, speedRatio) {
     raceCtx.fill();
 
     const drawOrder = [
-        { racer: me, ...mePosition, isLeader: meAhead },
-        { racer: opponent, ...opponentPosition, isLeader: !meAhead }
+        { racer: me, ...mePosition },
+        { racer: opponent, ...opponentPosition }
     ].sort((a, b) => a.scale - b.scale);
 
     drawOrder.forEach((entry) => {
@@ -556,21 +584,27 @@ function getBattlePairState(progress, speedRatio) {
     const battleSlice = getRoadSlice(0.64, progress, speedRatio);
     const gapMeters = (me.progress - opponent.progress) * DISTANCE_METERS;
     const normalizedGap = clamp(Math.abs(gapMeters) / 160, 0, 1);
+    const leadBlend = clamp(mapRange(gapMeters, -120, 120, 0, 1), 0, 1);
     const lateralSpread = battleSlice.laneWidth * 1.9 + normalizedGap * 16;
     const pairCenterX = battleSlice.centerX;
     const pairCenterY = battleSlice.y - 26;
 
-    const meAhead = me.progress >= opponent.progress;
+    const meAhead = gapMeters >= 0;
+    const frontY = pairCenterY - (58 + normalizedGap * 30);
+    const rearY = pairCenterY + (18 + normalizedGap * 12);
+    const frontScale = 0.82 - normalizedGap * 0.08;
+    const rearScale = 1.02 - normalizedGap * 0.04;
+
     const mePosition = {
         x: pairCenterX - lateralSpread / 2,
-        y: pairCenterY + (meAhead ? -(58 + normalizedGap * 30) : 18 + normalizedGap * 12),
-        scale: meAhead ? 0.82 - normalizedGap * 0.08 : 1.02 - normalizedGap * 0.04,
+        y: lerp(rearY, frontY, leadBlend),
+        scale: lerp(rearScale, frontScale, leadBlend),
         isLeader: meAhead
     };
     const opponentPosition = {
         x: pairCenterX + lateralSpread / 2,
-        y: pairCenterY + (meAhead ? 18 + normalizedGap * 12 : -(58 + normalizedGap * 30)),
-        scale: meAhead ? 1.02 - normalizedGap * 0.04 : 0.82 - normalizedGap * 0.08,
+        y: lerp(frontY, rearY, leadBlend),
+        scale: lerp(frontScale, rearScale, leadBlend),
         isLeader: !meAhead
     };
 
@@ -635,6 +669,7 @@ function drawRaceDisplay(elapsed) {
     raceCtx.clearRect(0, 0, raceCanvas.width, raceCanvas.height);
     drawRaceBackground(progress, speedRatio);
     drawTrack(progress, speedRatio);
+    drawFinishLineMarker(progress, speedRatio);
     if (raceMode === "uphill") {
         drawPlayerOnlyRacePair(progress, elapsed, speedRatio);
     } else {
@@ -689,6 +724,7 @@ function drawOpponentOnlyDisplay(elapsed) {
     gaugeCtx.clearRect(0, 0, gaugeCanvas.width, gaugeCanvas.height);
     drawRaceBackgroundOn(gaugeCtx, gaugeCanvas, progress, speedRatio);
     drawTrackOn(gaugeCtx, gaugeCanvas, progress, speedRatio);
+    drawFinishLineMarkerOn(gaugeCtx, progress, speedRatio);
 
     const pairState = getBattlePairState(progress, speedRatio);
 
