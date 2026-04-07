@@ -121,3 +121,12 @@ Start Race, Reset
 Boost Me, Slow Me
 Boost Rival, Slow Rival
 ```
+
+```
+컨트롤 영역 가장 아래에 uphill / downhill 토클되는 버튼을 하나 만들거야
+downhill 화면은 지금 보이는 화면과 동일하고, uphill 화면은 좌측에는 내 차량만, 우측에는 상대 차량만 나오게 수정해줘
+```
+
+```
+uphill은 좌측 원형 디스플레이에는 내 차량만, 우측 원형 디스플레이에는 상대 차량만 나오게 수정해줘
+```

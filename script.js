@@ -13,6 +13,7 @@ const slowMeBtn = document.getElementById("slowMeBtn");
 const boostOthersBtn = document.getElementById("boostOthersBtn");
 const slowOthersBtn = document.getElementById("slowOthersBtn");
 const resetBtn = document.getElementById("resetBtn");
+const modeToggleBtn = document.getElementById("modeToggleBtn");
 const raceDurationInput = document.getElementById("raceDurationInput");
 
 const raceState = document.getElementById("raceState");
@@ -48,6 +49,7 @@ let lastLeaderId = null;
 let audioEnabled = false;
 let currentSpeedKmh = 0;
 let gaugeSpeedKmh = 0;
+let raceMode = "downhill";
 
 const winAudio = new Audio("win.mp3");
 const loseAudio = new Audio("loose.mp3");
@@ -322,53 +324,57 @@ function getRoadSlice(depth, progress, speedRatio) {
     };
 }
 
-function drawMountainLayer(baseY, amplitude, color, shift, opacityBoost) {
-    raceCtx.fillStyle = color;
-    raceCtx.beginPath();
-    raceCtx.moveTo(0, raceCanvas.height);
+function drawMountainLayer(context, canvas, baseY, amplitude, color, shift, opacityBoost) {
+    context.fillStyle = color;
+    context.beginPath();
+    context.moveTo(0, canvas.height);
 
     for (let step = 0; step <= 8; step += 1) {
-        const x = (step / 8) * raceCanvas.width;
+        const x = (step / 8) * canvas.width;
         const wave = Math.sin(step * 0.92 + shift) * amplitude;
         const ridge = Math.cos(step * 1.31 - shift * 0.6) * amplitude * opacityBoost;
-        raceCtx.lineTo(x, baseY - wave - ridge);
+        context.lineTo(x, baseY - wave - ridge);
     }
 
-    raceCtx.lineTo(raceCanvas.width, raceCanvas.height);
-    raceCtx.closePath();
-    raceCtx.fill();
+    context.lineTo(canvas.width, canvas.height);
+    context.closePath();
+    context.fill();
 }
 
-function drawRaceBackground(progress, speedRatio) {
+function drawRaceBackgroundOn(context, canvas, progress, speedRatio) {
     const hue = 197 + Math.sin(progress * Math.PI * 2) * 10;
-    const sky = raceCtx.createLinearGradient(0, 0, 0, raceCanvas.height * 0.64);
+    const sky = context.createLinearGradient(0, 0, 0, canvas.height * 0.64);
     sky.addColorStop(0, `hsl(${hue} 78% 72%)`);
     sky.addColorStop(0.54, `hsl(${hue + 8} 74% 58%)`);
     sky.addColorStop(1, "#d8f1ff");
-    raceCtx.fillStyle = sky;
-    raceCtx.fillRect(0, 0, raceCanvas.width, raceCanvas.height);
+    context.fillStyle = sky;
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
-    raceCtx.fillStyle = "rgba(255, 255, 255, 0.16)";
-    raceCtx.beginPath();
-    raceCtx.arc(132, 96, 38 + speedRatio * 6, 0, Math.PI * 2);
-    raceCtx.fill();
+    context.fillStyle = "rgba(255, 255, 255, 0.16)";
+    context.beginPath();
+    context.arc(132, 96, 38 + speedRatio * 6, 0, Math.PI * 2);
+    context.fill();
 
-    drawMountainLayer(234, 58, "rgba(33, 88, 94, 0.48)", progress * 8, 0.45);
-    drawMountainLayer(274, 42, "rgba(58, 123, 88, 0.62)", progress * 6.4 + 0.8, 0.32);
+    drawMountainLayer(context, canvas, 234, 58, "rgba(33, 88, 94, 0.48)", progress * 8, 0.45);
+    drawMountainLayer(context, canvas, 274, 42, "rgba(58, 123, 88, 0.62)", progress * 6.4 + 0.8, 0.32);
 
-    raceCtx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    context.fillStyle = "rgba(255, 255, 255, 0.08)";
     for (let cloud = 0; cloud < 5; cloud += 1) {
         const x = 92 + cloud * 134 + Math.sin(progress * 10 + cloud) * 10;
         const y = 88 + (cloud % 2) * 26;
-        raceCtx.beginPath();
-        raceCtx.arc(x, y, 18, 0, Math.PI * 2);
-        raceCtx.arc(x + 18, y - 6, 14, 0, Math.PI * 2);
-        raceCtx.arc(x + 34, y, 17, 0, Math.PI * 2);
-        raceCtx.fill();
+        context.beginPath();
+        context.arc(x, y, 18, 0, Math.PI * 2);
+        context.arc(x + 18, y - 6, 14, 0, Math.PI * 2);
+        context.arc(x + 34, y, 17, 0, Math.PI * 2);
+        context.fill();
     }
 }
 
-function drawTrack(progress, speedRatio) {
+function drawRaceBackground(progress, speedRatio) {
+    drawRaceBackgroundOn(raceCtx, raceCanvas, progress, speedRatio);
+}
+
+function drawTrackOn(context, canvas, progress, speedRatio) {
     const stripCount = 72;
     const stripOffset = Math.floor(progress * 900);
 
@@ -379,8 +385,8 @@ function drawTrack(progress, speedRatio) {
         const near = getRoadSlice(nearDepth, progress, speedRatio);
 
         const grassColor = (stripOffset + index) % 2 === 0 ? "#77c84e" : "#67b142";
-        raceCtx.fillStyle = grassColor;
-        raceCtx.fillRect(0, far.y, raceCanvas.width, near.y - far.y + 2);
+        context.fillStyle = grassColor;
+        context.fillRect(0, far.y, canvas.width, near.y - far.y + 2);
 
         const farRoadHalf = far.roadWidth / 2;
         const nearRoadHalf = near.roadWidth / 2;
@@ -390,21 +396,21 @@ function drawTrack(progress, speedRatio) {
         const roadColor = `rgb(${roadShade}, ${roadShade + 2}, ${roadShade + 8})`;
         const curbColor = (stripOffset + index) % 2 === 0 ? "#fff8f0" : "#ff624e";
 
-        fillQuad(raceCtx, [
+        fillQuad(context, [
             { x: far.centerX - farOuterHalf, y: far.y },
             { x: far.centerX - farRoadHalf, y: far.y },
             { x: near.centerX - nearRoadHalf, y: near.y },
             { x: near.centerX - nearOuterHalf, y: near.y }
         ], curbColor);
 
-        fillQuad(raceCtx, [
+        fillQuad(context, [
             { x: far.centerX + farRoadHalf, y: far.y },
             { x: far.centerX + farOuterHalf, y: far.y },
             { x: near.centerX + nearOuterHalf, y: near.y },
             { x: near.centerX + nearRoadHalf, y: near.y }
         ], curbColor);
 
-        fillQuad(raceCtx, [
+        fillQuad(context, [
             { x: far.centerX - farRoadHalf, y: far.y },
             { x: far.centerX + farRoadHalf, y: far.y },
             { x: near.centerX + nearRoadHalf, y: near.y },
@@ -415,7 +421,7 @@ function drawTrack(progress, speedRatio) {
             const stripeWidthFar = Math.max(3, far.roadWidth * 0.018);
             const stripeWidthNear = Math.max(4, near.roadWidth * 0.026);
 
-            fillQuad(raceCtx, [
+            fillQuad(context, [
                 { x: far.centerX - stripeWidthFar, y: far.y },
                 { x: far.centerX + stripeWidthFar, y: far.y },
                 { x: near.centerX + stripeWidthNear, y: near.y },
@@ -424,44 +430,48 @@ function drawTrack(progress, speedRatio) {
         }
     }
 
-    const edgeGlow = raceCtx.createLinearGradient(0, raceCanvas.height * 0.24, 0, raceCanvas.height);
+    const edgeGlow = context.createLinearGradient(0, canvas.height * 0.24, 0, canvas.height);
     edgeGlow.addColorStop(0, "rgba(255,255,255,0)");
     edgeGlow.addColorStop(1, "rgba(255,255,255,0.08)");
-    raceCtx.fillStyle = edgeGlow;
-    raceCtx.fillRect(0, raceCanvas.height * 0.24, raceCanvas.width, raceCanvas.height * 0.72);
+    context.fillStyle = edgeGlow;
+    context.fillRect(0, canvas.height * 0.24, canvas.width, canvas.height * 0.72);
 }
 
-function drawRaceCarSprite(racer, x, y, scale, elapsed, isLeader) {
+function drawTrack(progress, speedRatio) {
+    drawTrackOn(raceCtx, raceCanvas, progress, speedRatio);
+}
+
+function drawRaceCarSprite(context, racer, x, y, scale, elapsed, isLeader) {
     const width = 100 * scale;
     const height = 48 * scale;
     const bob = Math.sin(elapsed * 0.009 + racer.wobbleSeed) * 2.2;
 
-    raceCtx.save();
-    raceCtx.translate(x, y + bob);
+    context.save();
+    context.translate(x, y + bob);
 
-    const glow = raceCtx.createRadialGradient(0, height * 0.1, 8, 0, 0, width);
+    const glow = context.createRadialGradient(0, height * 0.1, 8, 0, 0, width);
     glow.addColorStop(0, hexToRgba(racer.color, isLeader ? 0.46 : 0.28));
     glow.addColorStop(1, hexToRgba(racer.color, 0));
-    raceCtx.fillStyle = glow;
-    raceCtx.beginPath();
-    raceCtx.ellipse(0, 0, width * 0.95, height * 1.05, 0, 0, Math.PI * 2);
-    raceCtx.fill();
+    context.fillStyle = glow;
+    context.beginPath();
+    context.ellipse(0, 0, width * 0.95, height * 1.05, 0, 0, Math.PI * 2);
+    context.fill();
 
-    raceCtx.fillStyle = "rgba(6, 10, 16, 0.34)";
-    raceCtx.beginPath();
-    raceCtx.ellipse(0, height * 0.72, width * 0.78, height * 0.36, 0, 0, Math.PI * 2);
-    raceCtx.fill();
+    context.fillStyle = "rgba(6, 10, 16, 0.34)";
+    context.beginPath();
+    context.ellipse(0, height * 0.72, width * 0.78, height * 0.36, 0, 0, Math.PI * 2);
+    context.fill();
 
-    fillRoundedRect(raceCtx, -width / 2, -height * 0.42, width, height, 16 * scale, racer.color);
-    fillRoundedRect(raceCtx, -width * 0.25, -height * 0.88, width * 0.5, height * 0.38, 11 * scale, "#edf4ff");
-    fillRoundedRect(raceCtx, -width * 0.52, -height * 0.04, width * 0.18, height * 0.52, 8 * scale, "#0f141b");
-    fillRoundedRect(raceCtx, width * 0.34, -height * 0.04, width * 0.18, height * 0.52, 8 * scale, "#0f141b");
-    fillRoundedRect(raceCtx, -width * 0.58, -height * 0.45, width * 0.18, height * 0.26, 6 * scale, "#171d24");
-    fillRoundedRect(raceCtx, width * 0.4, -height * 0.45, width * 0.18, height * 0.26, 6 * scale, "#171d24");
+    fillRoundedRect(context, -width / 2, -height * 0.42, width, height, 16 * scale, racer.color);
+    fillRoundedRect(context, -width * 0.25, -height * 0.88, width * 0.5, height * 0.38, 11 * scale, "#edf4ff");
+    fillRoundedRect(context, -width * 0.52, -height * 0.04, width * 0.18, height * 0.52, 8 * scale, "#0f141b");
+    fillRoundedRect(context, width * 0.34, -height * 0.04, width * 0.18, height * 0.52, 8 * scale, "#0f141b");
+    fillRoundedRect(context, -width * 0.58, -height * 0.45, width * 0.18, height * 0.26, 6 * scale, "#171d24");
+    fillRoundedRect(context, width * 0.4, -height * 0.45, width * 0.18, height * 0.26, 6 * scale, "#171d24");
 
     if (isLeader) {
         strokeRoundedRect(
-            raceCtx,
+            context,
             -width * 0.58,
             -height * 0.58,
             width * 1.16,
@@ -472,12 +482,12 @@ function drawRaceCarSprite(racer, x, y, scale, elapsed, isLeader) {
         );
     }
 
-    raceCtx.fillStyle = "rgba(255, 255, 255, 0.96)";
-    raceCtx.font = `${Math.max(16, Math.round(20 * scale))}px Bahnschrift, Segoe UI, sans-serif`;
-    raceCtx.textAlign = "center";
-    raceCtx.fillText(racer.name, 0, -height * 1.22);
+    context.fillStyle = "rgba(255, 255, 255, 0.96)";
+    context.font = `${Math.max(16, Math.round(20 * scale))}px Bahnschrift, Segoe UI, sans-serif`;
+    context.textAlign = "center";
+    context.fillText(racer.name, 0, -height * 1.22);
 
-    raceCtx.restore();
+    context.restore();
 }
 
 function drawCenterRacePair(progress, elapsed, speedRatio) {
@@ -518,8 +528,53 @@ function drawCenterRacePair(progress, elapsed, speedRatio) {
     ].sort((a, b) => a.scale - b.scale);
 
     drawOrder.forEach((entry) => {
-        drawRaceCarSprite(entry.racer, entry.x, entry.y, entry.scale, elapsed, entry.isLeader);
+        drawRaceCarSprite(raceCtx, entry.racer, entry.x, entry.y, entry.scale, elapsed, entry.isLeader);
     });
+}
+
+function drawPlayerOnlyRacePair(progress, elapsed, speedRatio) {
+    const me = getPlayer();
+    const leader = getLeader();
+
+    if (!me) {
+        return;
+    }
+
+    const splitSlice = getRoadSlice(0.66, progress, speedRatio);
+    const yBase = splitSlice.y - 34;
+    drawRaceCarSprite(raceCtx, me, splitSlice.centerX, yBase, 1.04, elapsed, Boolean(leader && leader.id === me.id));
+}
+
+function getBattlePairState(progress, speedRatio) {
+    const me = getPlayer();
+    const opponent = getOpponent();
+
+    if (!me || !opponent) {
+        return null;
+    }
+
+    const battleSlice = getRoadSlice(0.64, progress, speedRatio);
+    const gapMeters = (me.progress - opponent.progress) * DISTANCE_METERS;
+    const normalizedGap = clamp(Math.abs(gapMeters) / 160, 0, 1);
+    const lateralSpread = battleSlice.laneWidth * 1.9 + normalizedGap * 16;
+    const pairCenterX = battleSlice.centerX;
+    const pairCenterY = battleSlice.y - 26;
+
+    const meAhead = me.progress >= opponent.progress;
+    const mePosition = {
+        x: pairCenterX - lateralSpread / 2,
+        y: pairCenterY + (meAhead ? -(58 + normalizedGap * 30) : 18 + normalizedGap * 12),
+        scale: meAhead ? 0.82 - normalizedGap * 0.08 : 1.02 - normalizedGap * 0.04,
+        isLeader: meAhead
+    };
+    const opponentPosition = {
+        x: pairCenterX + lateralSpread / 2,
+        y: pairCenterY + (meAhead ? 18 + normalizedGap * 12 : -(58 + normalizedGap * 30)),
+        scale: meAhead ? 1.02 - normalizedGap * 0.04 : 0.82 - normalizedGap * 0.08,
+        isLeader: !meAhead
+    };
+
+    return { me, opponent, pairCenterX, pairCenterY, lateralSpread, mePosition, opponentPosition };
 }
 
 function drawRaceHud(curve) {
@@ -580,8 +635,28 @@ function drawRaceDisplay(elapsed) {
     raceCtx.clearRect(0, 0, raceCanvas.width, raceCanvas.height);
     drawRaceBackground(progress, speedRatio);
     drawTrack(progress, speedRatio);
-    drawCenterRacePair(progress, elapsed, speedRatio);
+    if (raceMode === "uphill") {
+        drawPlayerOnlyRacePair(progress, elapsed, speedRatio);
+    } else {
+        drawCenterRacePair(progress, elapsed, speedRatio);
+    }
     drawRaceHud(curve);
+}
+
+function updateModeToggleUi() {
+    if (!modeToggleBtn) {
+        return;
+    }
+
+    modeToggleBtn.textContent = `Mode: ${raceMode === "uphill" ? "Uphill" : "Downhill"}`;
+}
+
+function toggleRaceMode() {
+    raceMode = raceMode === "downhill" ? "uphill" : "downhill";
+    updateModeToggleUi();
+    announcement.textContent = raceMode === "uphill"
+        ? "Uphill mode: left side shows Player only, right side shows Rival only."
+        : "Downhill mode: race display is back to the original mixed battle view.";
 }
 
 function speedToAngle(speed) {
@@ -605,7 +680,37 @@ function drawGaugeChip(x, y, width, label, value, accentColor) {
     gaugeCtx.fillText(value, x + width / 2, y + 42);
 }
 
-function drawGaugeDisplay() {
+function drawOpponentOnlyDisplay(elapsed) {
+    const opponent = getOpponent();
+    const me = getPlayer();
+    const progress = me ? me.progress : 0;
+    const speedRatio = clamp(currentSpeedKmh / TOP_DISPLAY_SPEED, 0, 1);
+
+    gaugeCtx.clearRect(0, 0, gaugeCanvas.width, gaugeCanvas.height);
+    drawRaceBackgroundOn(gaugeCtx, gaugeCanvas, progress, speedRatio);
+    drawTrackOn(gaugeCtx, gaugeCanvas, progress, speedRatio);
+
+    const pairState = getBattlePairState(progress, speedRatio);
+
+    if (opponent && pairState) {
+        drawRaceCarSprite(
+            gaugeCtx,
+            opponent,
+            pairState.opponentPosition.x,
+            pairState.opponentPosition.y,
+            pairState.opponentPosition.scale,
+            elapsed,
+            pairState.opponentPosition.isLeader
+        );
+    }
+}
+
+function drawGaugeDisplay(elapsed) {
+    if (raceMode === "uphill") {
+        drawOpponentOnlyDisplay(elapsed);
+        return;
+    }
+
     const me = getPlayer();
     const opponent = getOpponent();
     const leader = getLeader();
@@ -847,7 +952,7 @@ function frame(timestamp) {
     updateRace(delta, timestamp);
     updateMotionAndSpeed(timestamp);
     drawRaceDisplay(timestamp);
-    drawGaugeDisplay();
+    drawGaugeDisplay(timestamp);
     updateUi();
 
     animationId = requestAnimationFrame(frame);
@@ -923,6 +1028,7 @@ function resetRace() {
 
 syncRaceDuration();
 setupRace();
+updateModeToggleUi();
 ensureLoop();
 
 startBtn.addEventListener("click", startRace);
@@ -932,6 +1038,9 @@ boostOthersBtn.addEventListener("click", boostOthers);
 slowOthersBtn.addEventListener("click", slowOthers);
 resetBtn.addEventListener("click", resetRace);
 raceDurationInput.addEventListener("change", syncRaceDuration);
+if (modeToggleBtn) {
+    modeToggleBtn.addEventListener("click", toggleRaceMode);
+}
 courseDisplay.addEventListener("animationend", () => {
     courseDisplay.classList.remove("overtake-boost", "overtake-hit");
 });

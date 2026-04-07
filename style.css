@@ -789,6 +789,12 @@ button:active {
     line-height: 1.55;
 }
 
+.mode-toggle-btn {
+    margin-top: 12px;
+    background: linear-gradient(135deg, #47c9ff, #3b5dff);
+    box-shadow: 0 12px 28px rgba(60, 110, 255, 0.28);
+}
+
 @keyframes courseFlash {
     0% {
         opacity: 0;
