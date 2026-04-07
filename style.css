@@ -37,6 +37,7 @@ body {
 }
 
 #app {
+    position: relative;
     width: min(1440px, calc(100vw - 24px));
     margin: 0 auto;
     padding: 26px 0 40px;
@@ -649,10 +650,17 @@ body {
 }
 
 .status-ribbon {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 50;
+    width: min(360px, calc(50vw - 26px));
+    max-height: calc(100vh - 36px);
+    overflow: auto;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    margin-top: 18px;
+    margin-top: 0;
     padding: 16px;
     border-radius: 32px;
 }
@@ -665,7 +673,7 @@ body {
 .readout-card strong {
     display: block;
     margin-top: 8px;
-    font-size: clamp(20px, 2vw, 30px);
+    font-size: clamp(18px, 1.6vw, 26px);
     line-height: 1.1;
 }
 
@@ -675,7 +683,14 @@ body {
 }
 
 .controls-dock {
-    margin-top: 20px;
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 50;
+    width: min(360px, calc(50vw - 26px));
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+    margin-top: 0;
     padding: 20px;
     border-radius: 30px;
 }
@@ -709,7 +724,7 @@ body {
 
 #controls {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -848,6 +863,22 @@ button:active {
 }
 
 @media (max-width: 1160px) {
+    .status-ribbon,
+    .controls-dock {
+        position: static;
+        width: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .status-ribbon {
+        margin-top: 18px;
+    }
+
+    .controls-dock {
+        margin-top: 20px;
+    }
+
     .display-pod {
         width: 34%;
     }
