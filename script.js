@@ -20,7 +20,15 @@ const DISTANCE_METERS = 1800;
 const DEFAULT_RACE_DURATION_SECONDS = 20;
 const BOOST_AMOUNT = 0.2;
 const TRACK_WIDTH = 108;
-const LANE_OFFSETS = [-30, -10, 10, 30];
+const LANE_OFFSETS = [-14, 14];
+const PLAYER_SPEED_RANGE = { min: 0.92, max: 1.12 };
+const OPPONENT_POOL = [
+    { id: "champion", name: "GROC 2025 챔피언", speed: 0.98 },
+    { id: "monthly", name: "이번 달 1위", speed: 1.01 },
+    { id: "today", name: "오늘 1위", speed: 1.06 },
+    { id: "friend", name: "내 친구", speed: 0.96 }
+];
+const OPPONENT_SPEED_VARIANCE = 0.08;
 
 const TRACK_SEGMENTS = [
     {
@@ -92,6 +100,10 @@ let raceDurationMs = DEFAULT_RACE_DURATION_SECONDS * 1000;
 
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+}
+
+function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
 }
 
 function lerp(start, end, ratio) {
@@ -199,11 +211,17 @@ function createRacer(id, name, color, lane, speed, role) {
 }
 
 function createInitialRacers() {
+    const opponent = OPPONENT_POOL[Math.floor(Math.random() * OPPONENT_POOL.length)];
+    const playerSpeed = randomBetween(PLAYER_SPEED_RANGE.min, PLAYER_SPEED_RANGE.max);
+    const opponentSpeed = clamp(
+        opponent.speed + randomBetween(-OPPONENT_SPEED_VARIANCE, OPPONENT_SPEED_VARIANCE),
+        0.88,
+        1.14
+    );
+
     return [
-        createRacer("me", "나", "#7af7c4", 0, 1.04, "Player"),
-        createRacer("npc1", "GROC 2025 챔피언", "#ff6f91", 1, 0.98, "CPU"),
-        createRacer("npc2", "이번달 1위", "#ffd166", 2, 1.01, "CPU"),
-        createRacer("npc3", "내 친구", "#75a9ff", 3, 0.96, "CPU")
+        createRacer("me", "나", "#7af7c4", 0, playerSpeed, "Player"),
+        createRacer(opponent.id, opponent.name, "#ff5c6c", 1, opponentSpeed, "CPU")
     ];
 }
 
