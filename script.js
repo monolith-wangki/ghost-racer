@@ -17,7 +17,7 @@ const myProgress = document.getElementById("myProgress");
 const announcement = document.getElementById("announcement");
 
 const DISTANCE_METERS = 1800;
-const DEFAULT_RACE_DURATION_SECONDS = 60;
+const DEFAULT_RACE_DURATION_SECONDS = 20;
 const BOOST_AMOUNT = 0.2;
 const TRACK_WIDTH = 108;
 const LANE_OFFSETS = [-30, -10, 10, 30];
@@ -405,31 +405,48 @@ function drawRacers(elapsed) {
 
     ordered.forEach((racer) => {
         const { x, y } = getRacerPosition(racer, elapsed);
-        const radius = racer.id === "me" ? 10 : 8;
+        const isMe = racer.id === "me";
+        const radius = isMe ? 13 : 8;
 
-        const glow = ctx.createRadialGradient(x, y, 3, x, y, 22);
+        const glow = ctx.createRadialGradient(x, y, 3, x, y, isMe ? 34 : 22);
         glow.addColorStop(0, `${racer.color}ff`);
+        glow.addColorStop(0.45, isMe ? `${racer.color}dd` : `${racer.color}88`);
         glow.addColorStop(1, `${racer.color}00`);
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.arc(x, y, isMe ? 34 : 22, 0, Math.PI * 2);
         ctx.fill();
+
+        if (isMe) {
+            ctx.strokeStyle = "rgba(255,255,255,0.22)";
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         ctx.fillStyle = racer.color;
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = racer.id === "me" ? "#ffffff" : "rgba(255,255,255,0.65)";
-        ctx.lineWidth = racer.id === "me" ? 3 : 2;
+        ctx.strokeStyle = isMe ? "#ffffff" : "rgba(255,255,255,0.65)";
+        ctx.lineWidth = isMe ? 4 : 2;
         ctx.beginPath();
-        ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+        ctx.arc(x, y, radius + (isMe ? 3 : 2), 0, Math.PI * 2);
         ctx.stroke();
 
+        if (isMe) {
+            ctx.fillStyle = "rgba(255,255,255,0.95)";
+            ctx.beginPath();
+            ctx.arc(x - 3, y - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.font = "600 13px Segoe UI";
+        ctx.font = isMe ? "700 14px Segoe UI" : "600 13px Segoe UI";
         ctx.textAlign = "center";
-        ctx.fillText(racer.name, x, y - 16);
+        ctx.fillText(racer.name, x, y - (isMe ? 24 : 16));
     });
 
     ctx.textAlign = "start";
