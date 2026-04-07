@@ -1,0 +1,239 @@
+:root {
+    --bg-top: #08111f;
+    --bg-bottom: #13233d;
+    --panel: rgba(7, 15, 28, 0.72);
+    --panel-border: rgba(255, 255, 255, 0.12);
+    --text-main: #f3f7ff;
+    --text-soft: #afbdd6;
+    --accent: #6effb2;
+    --accent-2: #68a7ff;
+    --danger: #ff7b7b;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text-main);
+    font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    background:
+        radial-gradient(circle at top, rgba(110, 255, 178, 0.16), transparent 26%),
+        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+}
+
+#app {
+    width: min(1180px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: 40px 0 32px;
+}
+
+.hero {
+    margin-bottom: 24px;
+}
+
+.eyebrow {
+    margin: 0 0 10px;
+    color: var(--accent);
+    font-size: 13px;
+    letter-spacing: 0.24em;
+    font-weight: 700;
+}
+
+.hero h1 {
+    margin: 0;
+    font-size: clamp(32px, 5vw, 54px);
+    line-height: 1;
+}
+
+.subtitle {
+    max-width: 760px;
+    margin: 14px 0 0;
+    color: var(--text-soft);
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+#game-container {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    gap: 20px;
+}
+
+.track-panel,
+.panel-card,
+.announcement {
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+    border: 1px solid var(--panel-border);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+}
+
+.track-panel {
+    padding: 18px;
+}
+
+canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #0c1526 0%, #16243b 45%, #081019 100%);
+}
+
+.status-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.status-bar > div,
+.racer-stat {
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-label,
+.racer-role {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-soft);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.panel-card {
+    padding: 20px;
+}
+
+.panel-card h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+}
+
+#controls {
+    display: grid;
+    gap: 12px;
+}
+
+button {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    border: none;
+    border-radius: 14px;
+    transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+}
+
+#startBtn {
+    background: linear-gradient(135deg, #34d97b, #16935e);
+    box-shadow: 0 12px 30px rgba(28, 170, 103, 0.28);
+}
+
+#boostMeBtn {
+    background: linear-gradient(135deg, #45b8ff, #3662ff);
+    box-shadow: 0 12px 30px rgba(67, 126, 255, 0.28);
+}
+
+#boostOthersBtn {
+    background: linear-gradient(135deg, #ff9568, #ff5578);
+    box-shadow: 0 12px 30px rgba(255, 85, 120, 0.24);
+}
+
+#resetBtn {
+    background: linear-gradient(135deg, #74829a, #4c5567);
+}
+
+button:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(1px) scale(0.99);
+}
+
+.racer-stats {
+    display: grid;
+    gap: 10px;
+}
+
+.racer-stat {
+    position: relative;
+    overflow: hidden;
+}
+
+.racer-stat::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 3px;
+    background: var(--racer-color, white);
+}
+
+.racer-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+
+.racer-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--racer-color, white);
+    box-shadow: 0 0 12px var(--racer-color, white);
+}
+
+.racer-speed {
+    margin-top: 8px;
+    color: var(--text-soft);
+    font-size: 14px;
+}
+
+.announcement {
+    margin-top: 20px;
+    padding: 16px 18px;
+    color: var(--text-soft);
+}
+
+@media (max-width: 920px) {
+    #app {
+        width: min(100vw - 20px, 960px);
+        padding-top: 24px;
+    }
+
+    #game-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .status-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .track-panel,
+    .panel-card,
+    .announcement {
+        border-radius: 18px;
+    }
+}

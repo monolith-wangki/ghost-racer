@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dot Race Prototype</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="hero">
+            <p class="eyebrow">DOT VIEW RACE</p>
+            <h1>게임 화면처럼 보이는 평면 레이스 코스</h1>
+            <p class="subtitle">직선과 곡선이 이어진 트랙 위를 점 레이서들이 질주합니다. 타이밍을 보고 나를 밀어주거나, 다른 레이서들을 자극해 레이스 흐름을 흔들어보세요.</p>
+        </header>
+
+        <main id="game-container">
+            <section class="track-panel">
+                <canvas id="raceCanvas" width="960" height="540"></canvas>
+                <div class="status-bar">
+                    <div>
+                        <span class="status-label">레이스 상태</span>
+                        <strong id="raceState">대기 중</strong>
+                    </div>
+                    <div>
+                        <span class="status-label">남은 거리</span>
+                        <strong id="distanceLeft">100m</strong>
+                    </div>
+                    <div>
+                        <span class="status-label">선두</span>
+                        <strong id="leaderName">나</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="control-panel">
+                <div class="panel-card">
+                    <h2>조작</h2>
+                    <div id="controls">
+                        <button id="startBtn">레이스 시작</button>
+                        <button id="boostMeBtn">내 속도 올리기</button>
+                        <button id="boostOthersBtn">다른 레이서 속도 올리기</button>
+                        <button id="resetBtn">리셋</button>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <h2>실시간 스피드</h2>
+                    <div id="racerStats" class="racer-stats"></div>
+                </div>
+            </section>
+        </main>
+
+        <div id="announcement" class="announcement" aria-live="polite">
+            출발 버튼을 누르면 레이스가 시작됩니다.
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
