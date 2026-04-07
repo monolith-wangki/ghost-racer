@@ -573,7 +573,7 @@ function updateUi() {
     courseDisplay.classList.toggle("leader-opponent", Boolean(leader && leader.id !== "me"));
 
     const leaderId = leader ? leader.id : null;
-    if (racing && leaderId && leaderId !== lastLeaderId) {
+    if (racing && lastLeaderId && leaderId && leaderId !== lastLeaderId) {
         playLeadAudio(leader);
     }
     lastLeaderId = leaderId;
@@ -605,6 +605,7 @@ function startRace() {
 
     syncRaceDuration();
     audioEnabled = true;
+    lastLeaderId = getLeader()?.id ?? null;
     racing = true;
     announcement.textContent = `${Math.round(raceDurationMs / 1000)}초 설정의 8자 서킷 레이스가 시작됐습니다.`;
     lastFrameTime = 0;
